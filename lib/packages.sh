@@ -3,6 +3,7 @@
 # shellcheck shell=bash
 
 pkg_installed() {
+  command -v pacman &>/dev/null || return 1
   pacman -Qi "$1" &>/dev/null
 }
 

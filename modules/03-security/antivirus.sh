@@ -40,8 +40,9 @@ module_run() {
   log_info "Enabling ClamAV signature update service (clamav-freshclam)..."
   local freshclam_active=false
   if [[ "${ARCHFORGE_TEST:-false}" != "true" ]]; then
-    systemctl is-active --quiet clamav-freshclam.service 2>/dev/null \
-      && freshclam_active=true || true
+    if systemctl is-active --quiet clamav-freshclam.service 2>/dev/null; then
+      freshclam_active=true
+    fi
   fi
   if [[ "${freshclam_active}" == "true" ]]; then
     log_info "clamav-freshclam.service is active — restarting to trigger update..."

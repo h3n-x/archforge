@@ -38,12 +38,11 @@ _add_noatime_to_fstab() {
   awk '
     $2 == "/" && !/noatime/ && !/relatime/ {
       if ($4 == "-") {
-        # "-" is fstab'\''s no-options placeholder; replace rather than prepend comma
+        # "-" is fstab no-options placeholder; replace rather than prepend comma
         $4 = "noatime"
       } else {
         i = index($0, $4)
         $0 = substr($0, 1, i + length($4) - 1) ",noatime" substr($0, i + length($4))
-        next
       }
     }
     { print }
@@ -266,7 +265,6 @@ _configure_continuous_trim() {
       } else {
         i = index($0, $4)
         $0 = substr($0, 1, i + length($4) - 1) ",discard" substr($0, i + length($4))
-        next
       }
     }
     { print }

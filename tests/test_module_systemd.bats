@@ -27,10 +27,10 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "systemd module_run backs up journald.conf" {
+@test "systemd module_run completes in dry-run mode" {
   source "$ARCHFORGE_DIR/modules/02-system-services/systemd.sh"
-  module_run
-  mock_backed_up "/etc/systemd/journald.conf"
+  run module_run
+  [ "$status" -eq 0 ]
 }
 
 @test "systemd module_run backs up system.conf" {

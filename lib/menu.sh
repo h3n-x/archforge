@@ -51,7 +51,8 @@ _print_banner() {
   # Subtitle lines centered on widest ASCII row; keep *_vis in sync with visible text.
   local _banner_w="${ARCHFORGE_BANNER_WIDTH}"
   local _line1_vis='archforge — post-installation toolkit for Arch Linux'
-  local _line2_vis='v0.1.0 · https://github.com/h3n-x/archforge'
+  local _ver="${ARCHFORGE_VERSION:-0.2.0}"
+  local _line2_vis="v${_ver} · https://github.com/h3n-x/archforge"
   local _pad1=$(( (_banner_w - ${#_line1_vis}) / 2 ))
   local _pad2=$(( (_banner_w - ${#_line2_vis}) / 2 ))
   (( _pad1 < 0 )) && _pad1=0
@@ -62,7 +63,7 @@ _print_banner() {
   printf "${b}archforge${r} ${d}—${r} post-installation toolkit for Arch Linux\n" >&2
   printf '%*s' "${_pad2}" '' >&2
   # shellcheck disable=SC2059
-  printf "${d}v0.1.0 · ${c}https://github.com/h3n-x/archforge${r}\n" >&2
+  printf "${d}v%s · ${c}https://github.com/h3n-x/archforge${r}\n" "${_ver}" >&2
   printf '\n' >&2
 }
 

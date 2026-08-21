@@ -33,8 +33,8 @@ module_run() {
   # Detect active DNS infrastructure — guarded for test environments
   local has_resolved=false has_nm=false
   if [[ "${ARCHFORGE_TEST:-false}" != "true" ]]; then
-    systemctl is-active --quiet systemd-resolved 2>/dev/null && has_resolved=true || true
-    systemctl is-active --quiet NetworkManager  2>/dev/null && has_nm=true         || true
+    if systemctl is-active --quiet systemd-resolved 2>/dev/null; then has_resolved=true; fi
+    if systemctl is-active --quiet NetworkManager  2>/dev/null; then has_nm=true; fi
   fi
 
   if [[ "${has_resolved}" == "true" && "${has_nm}" == "true" ]]; then

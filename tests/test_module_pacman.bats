@@ -7,6 +7,10 @@ setup() {
   source "$ARCHFORGE_DIR/lib/packages.sh"
   source "$ARCHFORGE_DIR/lib/backup.sh"
   mock_reset
+  if [[ ! -f /etc/pacman.conf ]]; then
+    export PACMAN_CONF="/tmp/archforge-test-pacman-$$.conf"
+    echo "[options]" > "$PACMAN_CONF"
+  fi
 }
 
 @test "pacman module_info has all required fields" {
@@ -25,11 +29,11 @@ setup() {
   [ "$status" -eq 0 ]
 }
 
-@test "pacman module_run backs up /etc/pacman.conf" {
+@test "pacman module_run backs up pacman.conf" {
   export DRY_RUN=true
   source "$ARCHFORGE_DIR/modules/01-package-management/pacman.sh"
   module_run
-  mock_backed_up "/etc/pacman.conf"
+  mock_backed_up "${PACMAN_CONF:-/etc/pacman.conf}"
 }
 
 @test "aur-helper module_info has MODULE_WIKI_SOURCE" {

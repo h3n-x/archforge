@@ -46,8 +46,9 @@ module_run() {
   # ── NTP ───────────────────────────────────────────────────────────────────
   local timesyncd_active=false
   if [[ "${ARCHFORGE_TEST:-false}" != "true" ]]; then
-    systemctl is-active --quiet systemd-timesyncd 2>/dev/null \
-      && timesyncd_active=true || true
+    if systemctl is-active --quiet systemd-timesyncd 2>/dev/null; then
+      timesyncd_active=true
+    fi
   fi
   if [[ "${timesyncd_active}" == "false" ]]; then
     if confirm "Enable systemd-timesyncd (NTP)?" "y"; then
@@ -108,7 +109,7 @@ _configure_journal() {
   log_info "Without a size limit the journal can grow to 10% of the filesystem (up to 4 GiB)."
 
   local max_use
-  read -r -p "Maximum journal size [500M]: " max_use
+  read -r -p "Maximum journal size [500M]: " max_use || max_use="500M"
   max_use="${max_use:-500M}"
 
   # Validate: accept values like 100M, 2G, 500M
@@ -120,8 +121,6 @@ _configure_journal() {
   backup_file "${dropin}"
   local tmp
   tmp="$(mktemp)"
-  # shellcheck disable=SC2064
-  trap "rm -f '${tmp}'" RETURN
 
   run_cmd sudo mkdir -p "${dropin_dir}"
   cat > "${tmp}" <<EOF
@@ -138,6 +137,7 @@ Storage=persistent
 SystemMaxUse=${max_use}
 EOF
   run_cmd sudo cp "${tmp}" "${dropin}"
+  rm -f "${tmp}"
   # Source: aur-wiki-systemd-journal.txt line 184:
   # "Restart the systemd-journald.service after changing this setting to apply the new limit."
   run_cmd sudo systemctl restart systemd-journald.service

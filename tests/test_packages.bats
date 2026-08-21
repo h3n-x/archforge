@@ -8,6 +8,9 @@ setup() {
 }
 
 @test "pkg_installed returns 0 for bash (always installed on Arch)" {
+  if ! command -v pacman &>/dev/null; then
+    skip "pacman not installed on test host"
+  fi
   run pkg_installed bash
   [ "$status" -eq 0 ]
 }

@@ -33,42 +33,43 @@ module_run() {
     log_warn "For optimal mirror and package configuration, run the pacman module first."
   fi
 
-  if [[ ! -f /etc/pacman.conf ]]; then
-    log_warn "pacman: /etc/pacman.conf not found — skipping"
+  local pacman_conf="${PACMAN_CONF:-/etc/pacman.conf}"
+
+  if [[ ! -f "${pacman_conf}" ]]; then
+    log_warn "pacman: ${pacman_conf} not found — skipping"
     return 2
   fi
 
   # ── pacman.conf options ───────────────────────────────────────────────────
-  backup_file "/etc/pacman.conf"
+  backup_file "${pacman_conf}"
 
-  log_info "Enabling parallel downloads, color, and ILoveCandy in /etc/pacman.conf"
+  log_info "Enabling parallel downloads, color, and ILoveCandy in ${pacman_conf}"
 
   local tmp
   tmp="$(mktemp)"
-  # shellcheck disable=SC2064
-  trap "rm -f '${tmp}'" RETURN
-  cp /etc/pacman.conf "${tmp}"
+  cp "${pacman_conf}" "${tmp}"
 
   _set_pacman_option "${tmp}" "ParallelDownloads" "5"
   _set_pacman_option "${tmp}" "Color"              ""
   _set_pacman_option "${tmp}" "ILoveCandy"         ""
   _set_pacman_option "${tmp}" "VerbosePkgLists"    ""
 
-  diff /etc/pacman.conf "${tmp}" || true
-  if ! confirm "Apply these changes to /etc/pacman.conf?" "y"; then
+  diff "${pacman_conf}" "${tmp}" || true
+  if ! confirm "Apply these changes to ${pacman_conf}?" "y"; then
+    rm -f "${tmp}"
     return 2
   fi
-  run_cmd sudo cp "${tmp}" /etc/pacman.conf
+  run_cmd sudo cp "${tmp}" "${pacman_conf}"
+  rm -f "${tmp}"
 
   if confirm "Enable [multilib] repository?" "y"; then
-    backup_file "/etc/pacman.conf"
+    backup_file "${pacman_conf}"
     local tmp2
     tmp2="$(mktemp)"
-    # shellcheck disable=SC2064
-    trap "rm -f '${tmp2}'" RETURN
-    cp /etc/pacman.conf "${tmp2}"
+    cp "${pacman_conf}" "${tmp2}"
     sed -i '/^#\[multilib\]/,/^#Include/ s/^#//' "${tmp2}"
-    run_cmd sudo cp "${tmp2}" /etc/pacman.conf
+    run_cmd sudo cp "${tmp2}" "${pacman_conf}"
+    rm -f "${tmp2}"
     run_cmd sudo pacman -Sy
   fi
 
@@ -102,14 +103,12 @@ _configure_reflector() {
   log_info "Examples: France,Germany  /  United States  /  Spain,Portugal"
 
   local countries
-  read -r -p "Countries [France,Germany,Spain]: " countries
+  read -r -p "Countries [France,Germany,Spain]: " countries || countries="France,Germany,Spain"
   countries="${countries:-France,Germany,Spain}"
 
   backup_file "${reflector_conf}"
   local tmp_ref
   tmp_ref="$(mktemp)"
-  # shellcheck disable=SC2064
-  trap "rm -f '${tmp_ref}'" RETURN
   cat > "${tmp_ref}" <<EOF
 # reflector configuration
 # Source: aur-wiki-mirrors.txt — Reflector (client-side mirror ranking)
@@ -120,6 +119,7 @@ _configure_reflector() {
 --sort rate
 EOF
   run_cmd sudo cp "${tmp_ref}" "${reflector_conf}"
+  rm -f "${tmp_ref}"
 
   # Enable timer for automatic weekly mirror refresh
   run_cmd sudo systemctl enable --now reflector.timer
