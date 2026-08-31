@@ -80,10 +80,16 @@ module_run() {
   # ── Step 5: Enable VMware services ────────────────────────────────────────
   # vmware-networks: guest network access (NAT, bridged, host-only)
   # vmware-usbarbitrator: USB passthrough to VMs
-  # vmware-hostd: sharing virtual machines (note: removed in version 16+)
+  # vmware-hostd: sharing virtual machines (removed since VMware Workstation 16 —
+  # source: aur-wiki-vmware.txt, Installation section). Guarded on unit-file
+  # existence so a v16+ install doesn't abort here under `set -e`.
   run_cmd sudo systemctl enable --now vmware-networks.service
   run_cmd sudo systemctl enable --now vmware-usbarbitrator.service
-  run_cmd sudo systemctl enable --now vmware-hostd.service
+  if systemctl list-unit-files vmware-hostd.service &>/dev/null 2>&1; then
+    run_cmd sudo systemctl enable --now vmware-hostd.service
+  else
+    log_info "vmware-hostd.service not present (removed since VMware Workstation 16) — skipping."
+  fi
 
   # ── Step 6: Optional kernel module loading ────────────────────────────────
   # Load vmmon and vmnet now so VMware is usable without a reboot.

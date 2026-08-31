@@ -35,7 +35,7 @@
 
 ## 🪄 About
 
-`archforge` automates the configuration of a freshly installed **Arch Linux** system. It runs independent **modules** that configure packages, services, security, networking, performance, input, console, graphics, and more. Every change is automatically **backed up** and can be reverted with `archforge restore`.
+`archforge` automates the configuration of a freshly installed **Arch Linux** system. It runs independent **modules** that configure packages, services, security, networking, performance, input, console, graphics, and more. Every file `archforge` edits or creates is automatically **backed up** and can be reverted with `archforge restore` — including undoing files it created from scratch, not just restoring overwritten ones. Package installs and service/group state changes (`systemctl enable`, `usermod`, etc.) are applied directly and are **not** reverted by `restore`; the summary printed after each run lists the packages installed so you can remove them manually if needed.
 
 > [!NOTE]
 > **ArchWiki only (official):** README text, module descriptions, links, and implementation guidance in this repository are based **solely** on the public [ArchWiki](https://wiki.archlinux.org/) — the official Arch Linux wiki. Where user repositories are involved, that means the same wiki (e.g. [Arch User Repository](https://wiki.archlinux.org/title/Arch_User_Repository), [AUR helpers](https://wiki.archlinux.org/title/AUR_helpers)), not third-party blogs or unofficial guides. The wiki remains the authoritative, up-to-date source; `archforge` is a helper and may lag behind wiki edits.

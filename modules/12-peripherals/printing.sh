@@ -13,6 +13,24 @@ source "${ARCHFORGE_DIR}/lib/packages.sh"
 # shellcheck disable=SC1091
 source "${ARCHFORGE_DIR}/lib/backup.sh"
 
+# Insert "mdns_minimal [NOTFOUND=return] " into the nsswitch.conf "hosts:"
+# line, immediately before "resolve" if present — matching the exact
+# ArchWiki example (aur-wiki-avahi.txt): "hosts: mymachines mdns_minimal
+# [NOTFOUND=return] resolve [!UNAVAIL=return] files myhostname dns".
+# Falls back to immediately before "dns" if "resolve" is absent, or appends
+# to the end of the line if neither token is present. A plain greedy
+# `s/\(hosts:.*\)\(resolve\|dns\)/.../ ` (the previous approach) inserts
+# before the *last* match instead of "resolve", landing after it — wrong
+# per the wiki and confirmed by testing against a real default nsswitch line.
+_insert_mdns_minimal() {
+  local file="$1"
+  sed -E '/^hosts:/ {
+    /\bresolve\b/ { s/\bresolve\b/mdns_minimal [NOTFOUND=return] resolve/; b }
+    /\bdns\b/ { s/\bdns\b/mdns_minimal [NOTFOUND=return] dns/; b }
+    s/$/ mdns_minimal [NOTFOUND=return]/
+  }' "${file}"
+}
+
 module_info() {
   MODULE_NAME="Peripherals: Printing (CUPS)"
   MODULE_DESC="Install and configure CUPS, optional scanner support (SANE), printer driver packages"
@@ -48,8 +66,7 @@ module_run() {
       tmp="$(mktemp)"
       # shellcheck disable=SC2064
       trap "rm -f '${tmp}'" RETURN
-      sed 's/\(hosts:.*\)\(resolve\|dns\)/\1mdns_minimal [NOTFOUND=return] \2/' \
-        "${nsswitch}" > "${tmp}"
+      _insert_mdns_minimal "${nsswitch}" > "${tmp}"
       run_cmd sudo cp "${tmp}" "${nsswitch}"
       log_ok "nsswitch.conf updated for mDNS"
     fi

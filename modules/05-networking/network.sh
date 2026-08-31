@@ -13,6 +13,46 @@ source "${ARCHFORGE_DIR}/lib/packages.sh"
 # shellcheck disable=SC1091
 source "${ARCHFORGE_DIR}/lib/backup.sh"
 
+# Update the 3 standard entries in /etc/hosts (127.0.0.1, ::1, 127.0.1.1)
+# in place, preserving every other line untouched — VPN hosts, docker
+# entries, ad-block lists, or anything else the user or other tools have
+# added. Idempotent: replaces the existing line for each address if
+# present, appends it if absent. Previously this fully overwrote
+# /etc/hosts with only these 3 lines, discarding any custom entries.
+_update_hosts_file() {
+  local file="$1" hostname="$2"
+  local src="/dev/null"
+  [[ -f "${file}" ]] && src="${file}"
+  awk -v host="${hostname}" '
+    BEGIN {
+      seen_loopback4 = 0
+      seen_loopback6 = 0
+      seen_hostname  = 0
+    }
+    /^127\.0\.0\.1[[:space:]]/ {
+      print "127.0.0.1   localhost"
+      seen_loopback4 = 1
+      next
+    }
+    /^::1[[:space:]]/ {
+      print "::1         localhost"
+      seen_loopback6 = 1
+      next
+    }
+    /^127\.0\.1\.1[[:space:]]/ {
+      print "127.0.1.1   " host ".localdomain " host
+      seen_hostname = 1
+      next
+    }
+    { print }
+    END {
+      if (!seen_loopback4) print "127.0.0.1   localhost"
+      if (!seen_loopback6) print "::1         localhost"
+      if (!seen_hostname)  print "127.0.1.1   " host ".localdomain " host
+    }
+  ' "${src}"
+}
+
 module_info() {
   MODULE_NAME="Networking: network configuration"
   MODULE_DESC="Set hostname, configure /etc/hosts, verify NetworkManager, WiFi power save, regulatory domain, MAC randomization"
@@ -42,17 +82,14 @@ module_run() {
     current_hostname="${new_hostname}"
   fi
 
-  # /etc/hosts
+  # /etc/hosts — update the 3 standard entries in place, preserving any
+  # custom entries already in the file (see _update_hosts_file above).
   backup_file "/etc/hosts"
   local tmp
   tmp="$(mktemp)"
   # shellcheck disable=SC2064
   trap "rm -f '${tmp}'" RETURN
-  {
-    echo "127.0.0.1   localhost"
-    echo "::1         localhost"
-    echo "127.0.1.1   ${current_hostname}.localdomain ${current_hostname}"
-  } > "${tmp}"
+  _update_hosts_file "/etc/hosts" "${current_hostname}" > "${tmp}"
   diff /etc/hosts "${tmp}" || true
   if confirm "Apply /etc/hosts changes?" "y"; then
     run_cmd sudo cp "${tmp}" /etc/hosts

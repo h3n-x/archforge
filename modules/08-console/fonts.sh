@@ -7,6 +7,8 @@ set -euo pipefail
 source "${ARCHFORGE_DIR}/lib/core.sh"
 # shellcheck disable=SC1091
 source "${ARCHFORGE_DIR}/lib/backup.sh"
+# shellcheck disable=SC1091
+source "${ARCHFORGE_DIR}/lib/packages.sh"
 
 module_info() {
   MODULE_NAME="Console: Fonts"

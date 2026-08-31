@@ -36,6 +36,26 @@ load 'setup'
   [[ "${REQUESTED_MODULES[1]}" == "firewall" ]]
 }
 
+# M-1 regression: whitespace around comma-separated --modules tokens must be
+# trimmed. Previously "pacman, firewall , dns" produced " firewall " (with
+# spaces baked in), which _find_module_file() would never match, silently
+# failing that module with "Module not found: firewall ".
+@test "parse_args trims whitespace around --modules tokens" {
+  source "$ARCHFORGE_DIR/lib/core.sh"
+  source "$ARCHFORGE_DIR/archforge" --parse-only
+  parse_args --modules="pacman, firewall , dns"
+  [[ "${REQUESTED_MODULES[0]}" == "pacman" ]]
+  [[ "${REQUESTED_MODULES[1]}" == "firewall" ]]
+  [[ "${REQUESTED_MODULES[2]}" == "dns" ]]
+}
+
+@test "parse_args --modules with empty string still yields an empty array" {
+  source "$ARCHFORGE_DIR/lib/core.sh"
+  source "$ARCHFORGE_DIR/archforge" --parse-only
+  parse_args --modules=""
+  [ "${#REQUESTED_MODULES[@]}" -eq 0 ]
+}
+
 @test "_find_module_file returns path for known module id" {
   source "$ARCHFORGE_DIR/lib/core.sh"
   source "$ARCHFORGE_DIR/archforge" --parse-only

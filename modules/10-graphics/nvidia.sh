@@ -397,12 +397,32 @@ module_run() {
   # Install packages
   _install_driver_packages "${driver}"
 
+  # Verify the primary driver package actually got installed before
+  # proceeding. aur_install() silently no-ops (log_skip, exit 0) when no AUR
+  # helper is configured, so without this check a DKMS driver install with
+  # no AUR helper present would appear to "succeed" while installing
+  # nothing. Skipped under DRY_RUN/ARCHFORGE_TEST, where nothing is ever
+  # installed for real. ${driver} is always the primary package name for
+  # each case in _install_driver_packages() above.
+  if [[ "${DRY_RUN:-false}" != "true" && "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    if ! pkg_installed "${driver}"; then
+      log_error "Package '${driver}' was not installed — aborting."
+      log_error "If this is an AUR package, make sure an AUR helper is configured (run the 'AUR helper' module first)."
+      return 1
+    fi
+  fi
+
   # DRM KMS
   _configure_drm_kms "${driver}"
 
-  # Optimus (laptop only)
-  if [[ "${IS_LAPTOP:-false}" == "true" ]]; then
+  # Optimus (laptop with hybrid graphics only). IS_LAPTOP alone does not
+  # imply a hybrid iGPU+dGPU setup — e.g. an NVIDIA-only gaming laptop with
+  # no integrated GPU. lib/detect.sh sets DETECTED_GPU to "Multiple (...)"
+  # when more than one GPU is found on the PCI bus.
+  if [[ "${IS_LAPTOP:-false}" == "true" && "${DETECTED_GPU:-}" == Multiple* ]]; then
     _configure_optimus
+  elif [[ "${IS_LAPTOP:-false}" == "true" ]]; then
+    log_info "Laptop detected but no hybrid graphics found (DETECTED_GPU=${DETECTED_GPU:-Unknown}) — skipping Optimus configuration."
   fi
 
   # Optional nvtop

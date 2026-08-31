@@ -169,11 +169,12 @@ w    /sys/kernel/mm/transparent_hugepage/enabled  -    -   -   -   madvise
 w    /sys/kernel/mm/transparent_hugepage/defrag   -    -   -   -   never
 EOF
     run_cmd sudo cp "${tmp}" "${thp_conf}"
-    # Apply immediately without reboot
-    if [[ "${ARCHFORGE_TEST:-false}" != "true" ]]; then
-      echo "madvise" | sudo tee /sys/kernel/mm/transparent_hugepage/enabled > /dev/null 2>&1 || true
-      echo "never"   | sudo tee /sys/kernel/mm/transparent_hugepage/defrag  > /dev/null 2>&1 || true
-    fi
+    # Apply immediately without reboot. Routed through run_cmd (instead of a
+    # raw `sudo tee`) so DRY_RUN and ARCHFORGE_TEST both gate this write —
+    # previously this bypassed DRY_RUN and mutated live kernel state even
+    # under --dry-run.
+    run_cmd sudo tee /sys/kernel/mm/transparent_hugepage/enabled <<< "madvise" > /dev/null 2>&1 || true
+    run_cmd sudo tee /sys/kernel/mm/transparent_hugepage/defrag  <<< "never"   > /dev/null 2>&1 || true
     log_ok "THP set to 'madvise' (persisted via systemd-tmpfiles)."
   fi
 }

@@ -80,6 +80,19 @@ parse_args() {
     esac
     shift
   done
+
+  # Trim leading/trailing whitespace from each --modules token, so
+  # "pacman, firewall , dns" resolves the same as "pacman,firewall,dns"
+  # instead of failing per-token with "Module not found: firewall " (with
+  # a trailing space baked into the id).
+  local _i _tok
+  for _i in "${!REQUESTED_MODULES[@]}"; do
+    _tok="${REQUESTED_MODULES[${_i}]}"
+    _tok="${_tok#"${_tok%%[![:space:]]*}"}"
+    _tok="${_tok%"${_tok##*[![:space:]]}"}"
+    REQUESTED_MODULES[${_i}]="${_tok}"
+  done
+
   export DRY_RUN YES_FLAG AUR_HELPER
 }
 

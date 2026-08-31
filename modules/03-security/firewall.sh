@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 # modules/03-security/firewall.sh
 # shellcheck shell=bash
+set -euo pipefail
+
+# shellcheck source=../../lib/core.sh
+# shellcheck disable=SC2154,SC1091
+source "${ARCHFORGE_DIR}/lib/core.sh"
+# shellcheck source=../../lib/packages.sh
+# shellcheck disable=SC1091
+source "${ARCHFORGE_DIR}/lib/packages.sh"
+# shellcheck source=../../lib/backup.sh
+# shellcheck disable=SC1091
+source "${ARCHFORGE_DIR}/lib/backup.sh"
 
 module_info() {
   MODULE_NAME="Security: Firewall (nftables)"
@@ -82,3 +93,5 @@ _select_firewall_profile() {
     *) echo "" ;;
   esac
 }
+
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] || module_run

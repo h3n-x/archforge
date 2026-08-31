@@ -32,7 +32,6 @@ _ensure_manifest() {
 
 backup_file() {
   local path="$1"
-  [[ -e "${path}" || -L "${path}" ]] || return 0
 
   _ensure_manifest
 
@@ -43,6 +42,16 @@ backup_file() {
 
   if [[ "${ARCHFORGE_TEST:-false}" == "true" ]]; then
     echo "${path}" >> "${MOCK_BACKUP_LOG:-/tmp/archforge-mock-backup-$$.log}"
+  fi
+
+  if [[ ! -e "${path}" && ! -L "${path}" ]]; then
+    # Path does not exist yet — the caller is about to create it. Record
+    # this *before* the caller writes the file (not after), so a crash
+    # between this call and the actual write still leaves an accurate
+    # manifest. `restore` uses TYPE=created to delete the file instead of
+    # copying old content back, since there is no prior content to restore.
+    echo "  PATH=${path}  TYPE=created" >> "${manifest}"
+    return 0
   fi
 
   if [[ -L "${path}" ]]; then
@@ -203,7 +212,11 @@ _restore_file_picker() {
 _restore_entry() {
   local session_dir="$1" manifest="$2" path="$3" type="$4" manifest_line="$5"
 
-  confirm "Restore ${path}?" || return 0
+  if [[ "${type}" == "created" ]]; then
+    confirm "Delete ${path} (created by archforge — did not exist before this session)?" || return 0
+  else
+    confirm "Restore ${path}?" || return 0
+  fi
 
   # Remove immutable flag if previously set
   local attr_line
@@ -231,6 +244,14 @@ _restore_entry() {
       [[ -n "${mode}" ]]  && run_cmd chmod "${mode}" "${path}"
       [[ -n "${owner}" ]] && run_cmd chown "${owner}" "${path}"
       log_ok "Restored file: ${path}"
+      ;;
+    created)
+      if [[ -e "${path}" || -L "${path}" ]]; then
+        run_cmd rm -f "${path}"
+        log_ok "Removed file created by archforge: ${path}"
+      else
+        log_skip "${path} already absent — nothing to remove."
+      fi
       ;;
     *)
       log_warn "Unknown type '${type}' for ${path}"

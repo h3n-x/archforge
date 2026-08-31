@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 # modules/01-package-management/aur-helper.sh
 # shellcheck shell=bash
+set -euo pipefail
+
+# shellcheck source=../../lib/core.sh
+# shellcheck disable=SC2154,SC1091
+source "${ARCHFORGE_DIR}/lib/core.sh"
+# shellcheck source=../../lib/packages.sh
+# shellcheck disable=SC1091
+source "${ARCHFORGE_DIR}/lib/packages.sh"
+# shellcheck source=../../lib/backup.sh
+# shellcheck disable=SC1091
+source "${ARCHFORGE_DIR}/lib/backup.sh"
 
 module_info() {
   MODULE_NAME="Package Management: AUR helper"
@@ -169,3 +180,5 @@ _optimize_makepkg() {
 
   log_ok "makepkg optimizations applied."
 }
+
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] || module_run
