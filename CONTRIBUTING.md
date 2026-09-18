@@ -23,6 +23,14 @@ Códigos de salida:
 - `2` — uso incorrecto / argumentos inválidos
 - Otro — error inesperado
 
+### Ejecución segura de comandos (`run_cmd` vs `run_cmd_secret`)
+- `run_cmd <cmd> [args...]` — Wrapper estándar de ejecución. En modo normal ejecuta el comando, muestra stdout/stderr en pantalla y registra la traza y salida completa en `LOG_FILE`. En `--dry-run` o `ARCHFORGE_TEST` intercepta la ejecución.
+- `run_cmd_secret <label> <cmd> [args...]` — Úsalo obligatoriamente cuando un comando maneje **material sensible** (tokens de API, PINs de emparejamiento Bluetooth, claves o contraseñas). Ejecuta el comando directamente pero registra únicamente `[EXEC  ] [SECRET: <label>]` en `LOG_FILE`, evitando que contraseñas o argumentos sensibles queden persistidos en disco.
+  ```bash
+  # Ejemplo: comando que recibe un PIN o secreto por argumento
+  run_cmd_secret "bluetooth-pin" bluetoothctl pair "${device_mac}" "${pin}"
+  ```
+
 ### Documentación del repositorio
 - `README.md` — inglés (vista por defecto en GitHub)
 - `README.es.md` — español
@@ -59,6 +67,14 @@ Exit codes:
 - `2` — incorrect usage / invalid arguments
 - Other — unexpected error
 
+### Safe command execution (`run_cmd` vs `run_cmd_secret`)
+- `run_cmd <cmd> [args...]` — Standard execution wrapper. Runs command in normal mode, teeing stdout/stderr to terminal and logging trace to `LOG_FILE`. In `--dry-run` or `ARCHFORGE_TEST`, intercepts execution.
+- `run_cmd_secret <label> <cmd> [args...]` — Required whenever a command handles **sensitive material** (API tokens, Bluetooth pairing PINs, passwords, or keys). Executes the command directly while logging only `[EXEC  ] [SECRET: <label>]` to `LOG_FILE`, ensuring secret arguments and output are never persisted to disk.
+  ```bash
+  # Example: command receiving a PIN or sensitive argument
+  run_cmd_secret "bluetooth-pin" bluetoothctl pair "${device_mac}" "${pin}"
+  ```
+
 ### Repository documentation
 - `README.md` — English (default on GitHub)
 - `README.es.md` — Spanish
@@ -69,3 +85,4 @@ Keep both files in sync (same structure and equivalent content). Do not translat
 - [ ] `shellcheck` reports no errors or warnings
 - [ ] `bats` tests pass (`make test`)
 - [ ] An entry has been added to `CHANGELOG.md`
+

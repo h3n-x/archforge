@@ -284,4 +284,44 @@ EOF
   unset SUDO_USER ARCHFORGE_USER_RUNTIME_DIR
 }
 
+@test "enable_user_service resolves single user via loginctl fallback when SUDO_USER is unset" {
+  mock_reset
+  local fake_bin; fake_bin="$(mktemp -d)"
+  local current_user; current_user="$(id -un)"
+  cat > "${fake_bin}/loginctl" <<EOF
+#!/usr/bin/env bash
+echo "2 1000 ${current_user} seat0"
+EOF
+  chmod +x "${fake_bin}/loginctl"
+
+  local fake_runtime; fake_runtime="$(mktemp -d)"
+  local bus_socket="${fake_runtime}/bus"
+  python3 -c "import socket, sys; s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); s.bind(sys.argv[1])" "${bus_socket}"
+
+  unset SUDO_USER
+  PATH="${fake_bin}:${PATH}" ARCHFORGE_USER_RUNTIME_DIR="${fake_runtime}" enable_user_service wireplumber.service
+
+  mock_ran "systemctl --user start wireplumber.service"
+
+  rm -rf "${fake_bin}" "${fake_runtime}"
+}
+
+@test "enable_user_service skips active start when loginctl detects multiple active sessions" {
+  local fake_bin; fake_bin="$(mktemp -d)"
+  cat > "${fake_bin}/loginctl" <<'EOF'
+#!/usr/bin/env bash
+echo "2 1000 alice seat0"
+echo "3 1001 bob   seat1"
+EOF
+  chmod +x "${fake_bin}/loginctl"
+
+  unset SUDO_USER
+  PATH="${fake_bin}:${PATH}" run enable_user_service wireplumber.service
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Multiple active user sessions detected"* ]]
+
+  rm -rf "${fake_bin}"
+}
+
+
 

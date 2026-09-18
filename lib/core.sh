@@ -197,7 +197,14 @@ enable_user_service() {
     if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
       target_user="${SUDO_USER}"
     elif command -v loginctl &>/dev/null; then
-      target_user="$(loginctl list-sessions --no-legend 2>/dev/null | awk '$3 != "root" && $3 != "" {print $3; exit}' || true)"
+      local -a active_users=()
+      mapfile -t active_users < <(loginctl list-sessions --no-legend 2>/dev/null | awk '$3 != "root" && $3 != "" {print $3}' | sort -u || true)
+      if [[ ${#active_users[@]} -eq 1 ]]; then
+        target_user="${active_users[0]}"
+      elif [[ ${#active_users[@]} -gt 1 ]]; then
+        log_info "Multiple active user sessions detected (${active_users[*]}); skipping immediate session start in favor of global enablement on next login."
+        continue
+      fi
     fi
 
     if [[ -z "${target_user}" ]]; then
