@@ -220,3 +220,17 @@ EOF
 
   rm -rf "${fake_bin}" "${tmp}"
 }
+
+@test "resolve_log_file creates LOG_FILE with 0600 permissions" {
+  local fake_home; fake_home="$(mktemp -d)"
+  HOME="${fake_home}" resolve_log_file
+  [ -f "${LOG_FILE}" ]
+  local perms
+  perms="$(stat -c '%a' "${LOG_FILE}")"
+  [ "${perms}" -eq 600 ]
+  local dir_perms
+  dir_perms="$(stat -c '%a' "$(dirname "${LOG_FILE}")")"
+  [ "${dir_perms}" -eq 700 ]
+  rm -rf "${fake_home}"
+}
+

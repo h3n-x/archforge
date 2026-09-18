@@ -39,12 +39,15 @@ resolve_log_file() {
   local user_dir="${HOME}/.local/share/archforge/logs"
 
   if mkdir -p "${system_dir}" 2>/dev/null && [[ -w "${system_dir}" ]]; then
+    chmod 755 "${system_dir}" 2>/dev/null || true
     LOG_FILE="${system_dir}/${ts}.log"
   else
     mkdir -p "${user_dir}"
+    chmod 700 "${user_dir}" 2>/dev/null || true
     LOG_FILE="${user_dir}/${ts}.log"
   fi
   touch "${LOG_FILE}"
+  chmod 600 "${LOG_FILE}" 2>/dev/null || true
   export LOG_FILE
 }
 
@@ -74,9 +77,10 @@ confirm() {
 }
 
 # ── run_cmd ───────────────────────────────────────────────────────────────────
-# In dry-run mode: prints [DRY-RUN] prefix, returns 0, does NOT execute.
+# Central execution wrapper.
+# In normal mode: executes command directly, streaming stdout/stderr to LOG_FILE if set.
+# In dry-run mode: prints [DRY-RUN] and the command, does not execute.
 # In test mode (ARCHFORGE_TEST=true): appends command to MOCK_LOG_FILE on disk.
-#   File-based because module_run() runs in a subshell — in-memory state is lost.
 run_cmd() {
   if [[ "${DRY_RUN:-false}" == "true" ]]; then
     log_dry "$*"
@@ -87,7 +91,10 @@ run_cmd() {
     return 0
   fi
   if [[ -n "${LOG_FILE:-}" ]]; then
-    touch "${LOG_FILE}" 2>/dev/null || true
+    if [[ ! -e "${LOG_FILE}" ]]; then
+      touch "${LOG_FILE}" 2>/dev/null || true
+      chmod 600 "${LOG_FILE}" 2>/dev/null || true
+    fi
     if [[ -w "${LOG_FILE}" ]]; then
       local _ts
       _ts="$(date '+%Y-%m-%d %H:%M:%S')"

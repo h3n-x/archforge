@@ -329,3 +329,60 @@ EOF
   rm -f "$file_c"
 }
 
+@test "_restore_full restores all file types from a new manifest containing MODULE= tags" {
+  local reg_file="/tmp/archforge-test-full-reg-$$"
+  local sym_file="/tmp/archforge-test-full-sym-$$"
+  local sym_target="/tmp/archforge-test-full-target-$$"
+  local cre_file="/tmp/archforge-test-full-cre-$$"
+
+  # Setup regular file
+  echo "original full content" > "$reg_file"
+  CURRENT_MODULE="dns" backup_file "$reg_file"
+  echo "modified full content" > "$reg_file"
+
+  # Setup symlink
+  echo "target content" > "$sym_target"
+  ln -sf "$sym_target" "$sym_file"
+  CURRENT_MODULE="network" backup_file "$sym_file"
+  rm -f "$sym_file"
+  echo "wrong target" > "$sym_file"
+
+  # Setup created file (did not exist before backup)
+  rm -f "$cre_file"
+  CURRENT_MODULE="firewall" backup_file "$cre_file"
+  echo "created content that should be removed" > "$cre_file"
+
+  local session_dir="${BACKUP_BASE_DIR}/${SESSION_ID}"
+  local manifest="${session_dir}/session.manifest"
+
+  # Verify that all 3 lines in the manifest have MODULE= tags
+  run grep "MODULE=dns" "$manifest"
+  [ "$status" -eq 0 ]
+  run grep "MODULE=network" "$manifest"
+  [ "$status" -eq 0 ]
+  run grep "MODULE=firewall" "$manifest"
+  [ "$status" -eq 0 ]
+
+  # Run full session restore
+  export YES_FLAG=true
+  export ARCHFORGE_TEST=false
+  _restore_full "${session_dir}" "${manifest}"
+  export ARCHFORGE_TEST=true
+
+  # Assert 1: regular file content restored
+  run cat "$reg_file"
+  [[ "$output" == "original full content" ]]
+
+  # Assert 2: symlink restored pointing to sym_target
+  [ -L "$sym_file" ]
+  run readlink "$sym_file"
+  [[ "$output" == "$sym_target" ]]
+
+  # Assert 3: created file removed
+  [ ! -e "$cre_file" ]
+
+  # Cleanup
+  rm -f "$reg_file" "$sym_file" "$sym_target" "$cre_file"
+}
+
+
