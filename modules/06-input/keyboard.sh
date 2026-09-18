@@ -26,7 +26,7 @@ module_run() {
 
   local keymap=""
   if [[ "${YES_FLAG:-false}" != "true" && "${DRY_RUN:-false}" != "true" && "${ARCHFORGE_TEST:-false}" != "true" ]]; then
-    if command -v fzf &>/dev/null; then
+    if command -v fzf &>/dev/null && [[ -t 0 ]]; then
       keymap="$(localectl list-keymaps 2>/dev/null | fzf --prompt='Console keymap: ' || true)"
     else
       read -r -p "Console keymap (e.g. us, es, de — blank to skip): " keymap

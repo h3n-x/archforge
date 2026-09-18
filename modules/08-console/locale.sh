@@ -49,12 +49,14 @@ _configure_locale() {
   fi
   log_info "Current locale: ${current_locale}"
 
-  # Drain any buffered stdin left over from previous prompts
-  read -r -t 0.1 -n 10000 _ 2>/dev/null || true
+  # Drain any buffered stdin left over from previous prompts (terminal only)
+  if [[ -t 0 ]]; then
+    read -r -t 0.1 -n 10000 _ 2>/dev/null || true
+  fi
 
   local locale
   while true; do
-    read -r -p "Locale to generate [${current_locale}]: " locale
+    read -r -p "Locale to generate [${current_locale}]: " locale || true
     locale="${locale:-${current_locale}}"
     if [[ -z "${locale}" ]]; then
       log_skip "Locale generation skipped."
@@ -129,7 +131,7 @@ _configure_timezone() {
   log_info "Current timezone: $(timedatectl show --property=Timezone --value 2>/dev/null || true)"
 
   local tz=""
-  if command -v fzf &>/dev/null; then
+  if command -v fzf &>/dev/null && [[ -t 0 ]]; then
     tz="$(timedatectl list-timezones 2>/dev/null | fzf --prompt="Select timezone: " || true)"
   else
     read -r -p "Timezone (e.g. America/New_York — blank to skip): " tz
