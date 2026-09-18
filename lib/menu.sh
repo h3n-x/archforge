@@ -428,13 +428,8 @@ _render_module_preview_card() {
 preview_module() {
   local target="$1"
   local file=""
-  if [[ -f "${target}" ]]; then
-    file="${target}"
-  elif declare -f _find_module_file &>/dev/null; then
+  if declare -f _find_module_file &>/dev/null; then
     file="$(_find_module_file "${target}" 2>/dev/null || true)"
-  fi
-  if [[ -z "${file}" || ! -f "${file}" ]]; then
-    file="$(find "${ARCHFORGE_DIR}/modules" -name "${target}.sh" -print -quit 2>/dev/null || true)"
   fi
   if [[ -z "${file}" || ! -f "${file}" ]]; then
     echo "Module not found: ${target}" >&2
@@ -442,19 +437,17 @@ preview_module() {
   fi
 
   local out
-  out="$(bash -c "
-    export ARCHFORGE_DIR='${ARCHFORGE_DIR}'
-    export ARCHFORGE_TEST=true
-    source '${file}'
+  out="$(ARCHFORGE_DIR="${ARCHFORGE_DIR}" ARCHFORGE_TEST=true bash -c '
+    source "$1"
     module_info
-    printf 'MODULE_NAME=%q\n'        \"\${MODULE_NAME:-}\"
-    printf 'MODULE_DESC=%q\n'        \"\${MODULE_DESC:-}\"
-    printf 'MODULE_HW_WARN=%q\n'     \"\${MODULE_HW_WARN:-}\"
-    printf 'MODULE_WIKI_SOURCE=%q\n' \"\${MODULE_WIKI_SOURCE:-}\"
-    printf 'MODULE_PACKAGES=%q\n'    \"\${MODULE_PACKAGES:-}\"
-    printf 'MODULE_AUR_PACKAGES=%q\n' \"\${MODULE_AUR_PACKAGES:-}\"
-    printf 'MODULE_DEPENDS=%q\n'     \"\${MODULE_DEPENDS:-}\"
-  " 2>/dev/null)" || return 1
+    printf "MODULE_NAME=%q\n"        "${MODULE_NAME:-}"
+    printf "MODULE_DESC=%q\n"        "${MODULE_DESC:-}"
+    printf "MODULE_HW_WARN=%q\n"     "${MODULE_HW_WARN:-}"
+    printf "MODULE_WIKI_SOURCE=%q\n" "${MODULE_WIKI_SOURCE:-}"
+    printf "MODULE_PACKAGES=%q\n"    "${MODULE_PACKAGES:-}"
+    printf "MODULE_AUR_PACKAGES=%q\n" "${MODULE_AUR_PACKAGES:-}"
+    printf "MODULE_DEPENDS=%q\n"     "${MODULE_DEPENDS:-}"
+  ' _ "${file}" 2>/dev/null)" || return 1
 
   local MODULE_NAME="" MODULE_DESC="" MODULE_HW_WARN="" MODULE_WIKI_SOURCE=""
   local MODULE_PACKAGES="" MODULE_AUR_PACKAGES="" MODULE_DEPENDS=""

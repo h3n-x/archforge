@@ -69,3 +69,26 @@ load 'setup'
   run _find_module_file "no-such-module-$$"
   [ "$status" -ne 0 ]
 }
+
+@test "security: _find_module_file rejects paths outside modules/ (e.g. /etc/passwd)" {
+  source "$ARCHFORGE_DIR/lib/core.sh"
+  source "$ARCHFORGE_DIR/archforge" --parse-only
+  run _find_module_file "/etc/passwd"
+  [ "$status" -ne 0 ]
+}
+
+@test "security: _find_module_file rejects path traversal with ../ outside modules/" {
+  source "$ARCHFORGE_DIR/lib/core.sh"
+  source "$ARCHFORGE_DIR/archforge" --parse-only
+  run _find_module_file "../../etc/passwd"
+  [ "$status" -ne 0 ]
+}
+
+@test "_find_module_file accepts valid relative file path within modules/" {
+  source "$ARCHFORGE_DIR/lib/core.sh"
+  source "$ARCHFORGE_DIR/archforge" --parse-only
+  run _find_module_file "modules/03-security/dns.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"03-security/dns.sh" ]]
+}
+

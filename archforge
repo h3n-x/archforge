@@ -134,15 +134,15 @@ _load_module_info() {
   MODULE_NAME="" MODULE_HW_WARN="" MODULE_DEPENDS="" MODULE_WIKI_SOURCE="" MODULE_DESC=""
 
   local out
-  out="$(bash -c "
-    source '${module_file}'
+  out="$(ARCHFORGE_DIR="${ARCHFORGE_DIR}" ARCHFORGE_TEST=true bash -c '
+    source "$1"
     module_info
-    printf 'MODULE_NAME=%q\n'        \"\${MODULE_NAME:-}\"
-    printf 'MODULE_HW_WARN=%q\n'     \"\${MODULE_HW_WARN:-}\"
-    printf 'MODULE_DEPENDS=%q\n'     \"\${MODULE_DEPENDS:-}\"
-    printf 'MODULE_WIKI_SOURCE=%q\n' \"\${MODULE_WIKI_SOURCE:-}\"
-    printf 'MODULE_DESC=%q\n'        \"\${MODULE_DESC:-}\"
-  " 2>/dev/null)" || return 1
+    printf "MODULE_NAME=%q\n"        "${MODULE_NAME:-}"
+    printf "MODULE_HW_WARN=%q\n"     "${MODULE_HW_WARN:-}"
+    printf "MODULE_DEPENDS=%q\n"     "${MODULE_DEPENDS:-}"
+    printf "MODULE_WIKI_SOURCE=%q\n" "${MODULE_WIKI_SOURCE:-}"
+    printf "MODULE_DESC=%q\n"        "${MODULE_DESC:-}"
+  ' _ "${module_file}" 2>/dev/null)" || return 1
 
   local line
   while IFS= read -r line; do

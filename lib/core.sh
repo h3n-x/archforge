@@ -210,30 +210,64 @@ validate_nftables() {
 }
 
 # ── Module file resolver ──────────────────────────────────────────────────────
-# Resolves a module identifier (e.g. 'nvidia') or file path to its full path.
+# Resolves a module identifier (e.g. 'nvidia') or file path strictly within modules/.
+# Rejects any path outside ARCHFORGE_DIR/modules, including path traversal attempts.
 _find_module_file() {
   local target="$1"
-  if [[ -f "${target}" ]]; then
-    echo "${target}"
-    return 0
+  [[ -z "${target}" ]] && return 1
+
+  local modules_dir
+  modules_dir="$(realpath -q "${ARCHFORGE_DIR:-.}/modules" 2>/dev/null || true)"
+  [[ -z "${modules_dir}" || ! -d "${modules_dir}" ]] && return 1
+
+  # If target is an existing path, canonicalize and verify strict confinement in modules/
+  if [[ -e "${target}" ]]; then
+    local canon_target
+    canon_target="$(realpath -q "${target}" 2>/dev/null || true)"
+    if [[ -n "${canon_target}" && -f "${canon_target}" && "${canon_target}" == "${modules_dir}/"* && "${canon_target}" == *.sh ]]; then
+      echo "${canon_target}"
+      return 0
+    fi
+    # If path exists but does not resolve inside modules/ or is not .sh, reject immediately
+    return 1
   fi
+
+  # Reject any non-existent target containing path traversal characters
+  if [[ "${target}" == *"/"* || "${target}" == *".."* ]]; then
+    return 1
+  fi
+
+  # Resolve from ALL_MODULES mapping
   if [[ -n "${ALL_MODULES+x}" && ${#ALL_MODULES[@]} -gt 0 ]]; then
     local entry
     for entry in "${ALL_MODULES[@]}"; do
       if [[ "${entry%%:*}" == "${target}" ]]; then
-        echo "${ARCHFORGE_DIR}/modules/${entry#*:}"
-        return 0
+        local candidate="${ARCHFORGE_DIR}/modules/${entry#*:}"
+        local canon_candidate
+        canon_candidate="$(realpath -q "${candidate}" 2>/dev/null || true)"
+        if [[ -n "${canon_candidate}" && -f "${canon_candidate}" && "${canon_candidate}" == "${modules_dir}/"* && "${canon_candidate}" == *.sh ]]; then
+          echo "${canon_candidate}"
+          return 0
+        fi
       fi
     done
   fi
+
+  # Fallback search by basename strictly within modules/
   local match
-  match="$(find "${ARCHFORGE_DIR}/modules" -name "${target}.sh" -print -quit 2>/dev/null || true)"
-  if [[ -n "${match}" && -f "${match}" ]]; then
-    echo "${match}"
-    return 0
+  match="$(find "${modules_dir}" -maxdepth 3 -type f -name "${target}.sh" -print -quit 2>/dev/null || true)"
+  if [[ -n "${match}" ]]; then
+    local canon_match
+    canon_match="$(realpath -q "${match}" 2>/dev/null || true)"
+    if [[ -n "${canon_match}" && -f "${canon_match}" && "${canon_match}" == "${modules_dir}/"* && "${canon_match}" == *.sh ]]; then
+      echo "${canon_match}"
+      return 0
+    fi
   fi
+
   return 1
 }
+
 
 # ── wiki_source_to_urls ───────────────────────────────────────────────────────
 # Map MODULE_WIKI_SOURCE filenames to official ArchWiki URLs.

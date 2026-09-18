@@ -116,6 +116,38 @@ EOF
   [[ "$output" =~ "Module not found" ]]
 }
 
+@test "security: preview_module rejects absolute path outside modules/ (e.g. /etc/passwd)" {
+  run preview_module "/etc/passwd"
+  [ "$status" -eq 1 ]
+  [[ "$output" =~ "Module not found" ]]
+}
+
+@test "security: preview_module rejects path traversal with ../ outside modules/" {
+  run preview_module "../../etc/passwd"
+  [ "$status" -eq 1 ]
+  [[ "$output" =~ "Module not found" ]]
+}
+
+@test "security: preview_module rejects arbitrary script outside modules/ without sourcing it" {
+  local evil_script="/tmp/evil_test_$$.sh"
+  local canary_file="/tmp/evil_canary_$$.txt"
+  rm -f "${canary_file}"
+  cat <<EOF > "${evil_script}"
+touch "${canary_file}"
+module_info() { MODULE_NAME="Evil"; }
+EOF
+  chmod +x "${evil_script}"
+
+  run preview_module "${evil_script}"
+  rm -f "${evil_script}"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" =~ "Module not found" ]]
+  [ ! -f "${canary_file}" ]
+  rm -f "${canary_file}"
+}
+
+
 # ── NO_COLOR and TERM=dumb Standards Compliance (Requirement 4) ───────────────
 
 @test "NO_COLOR: strips all ANSI escape sequences from D1 menu output" {
