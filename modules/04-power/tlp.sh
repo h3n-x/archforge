@@ -37,8 +37,8 @@ module_run() {
   pacman_install tlp
 
   # ── Conflict check: power-profiles-daemon ─────────────────────────────────
-  # Source: https://wiki.archlinux.org/title/TLP#Conflicts
-  # "power-profiles-daemon conflicts with TLP... must be masked."
+  # Source: https://wiki.archlinux.org/title/CPU_frequency_scaling#power-profiles-daemon
+  # "power-profiles-daemon conflicts with other power management services such as TLP... disable by masking it."
   if systemctl is-active --quiet power-profiles-daemon.service 2>/dev/null || systemctl is-enabled --quiet power-profiles-daemon.service 2>/dev/null; then
     log_warn "power-profiles-daemon conflicts with TLP."
     if confirm "Mask conflicting power-profiles-daemon.service?" "y"; then

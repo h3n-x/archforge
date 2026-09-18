@@ -23,7 +23,7 @@ setup() {
 }
 
 @test "tlp.sh handles power-profiles-daemon conflict" {
-  # ArchWiki: https://wiki.archlinux.org/title/TLP#Conflicts
+  # ArchWiki: https://wiki.archlinux.org/title/CPU_frequency_scaling#power-profiles-daemon
   run grep -q 'power-profiles-daemon' "$ARCHFORGE_DIR/modules/04-power/tlp.sh"
   [ "$status" -eq 0 ]
 }
