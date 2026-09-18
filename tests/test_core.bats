@@ -95,3 +95,22 @@ setup() {
   [ "$status" -eq 0 ]
   rm -f "${tmp}"
 }
+
+@test "validate_nftables fails for empty file" {
+  local tmp
+  tmp="$(mktemp)"
+  export ARCHFORGE_TEST=true
+  run validate_nftables "${tmp}"
+  [ "$status" -ne 0 ]
+  rm -f "${tmp}"
+}
+
+@test "validate_nftables in dry-run mode skips privileged check safely" {
+  local tmp
+  tmp="$(mktemp)"
+  echo "table inet filter { chain input { type filter hook input priority 0; } }" > "${tmp}"
+  export ARCHFORGE_TEST=false DRY_RUN=true
+  run validate_nftables "${tmp}"
+  [ "$status" -eq 0 ]
+  rm -f "${tmp}"
+}

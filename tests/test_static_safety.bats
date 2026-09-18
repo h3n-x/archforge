@@ -17,12 +17,17 @@ _all_module_files() {
   find "${ARCHFORGE_DIR}/modules" -name '*.sh' | sort
 }
 
-@test "static: no module writes to a real path via 'sudo tee' / '| sudo tee' outside run_cmd" {
+_all_scanned_files() {
+  find "${ARCHFORGE_DIR}/modules" "${ARCHFORGE_DIR}/lib" -name '*.sh' | sort
+  echo "${ARCHFORGE_DIR}/archforge"
+}
+
+@test "static: no script writes to a real path via 'sudo tee' / '| sudo tee' outside run_cmd" {
   # Excludes: comment-only lines, and log_*() calls whose quoted string merely
   # *mentions* a command as advice to the user (e.g. "Run 'sudo mkinitcpio -P'
   # manually...") rather than executing it.
   local f matches bad=0
-  for f in $(_all_module_files) "${ARCHFORGE_DIR}/archforge"; do
+  for f in $(_all_scanned_files); do
     matches="$(grep -nE '(^|[^A-Za-z0-9_])(sudo[[:space:]]+tee|\|[[:space:]]*sudo[[:space:]]+tee)' "${f}" \
       | grep -vE 'run_cmd' \
       | grep -vE '^[0-9]+:[[:space:]]*#' \
@@ -49,7 +54,7 @@ _all_module_files() {
   #     guard.
   local pattern='sudo[[:space:]]+(systemctl|pacman[[:space:]]+-[SR]|mkinitcpio|modprobe|chattr|usermod|gpasswd|hwclock|timedatectl|localectl|nmcli|envycontrol|pacman-key|pkgfile|vmware-networks|iw[[:space:]]+reg)'
   local f bad=0
-  for f in $(_all_module_files) "${ARCHFORGE_DIR}/archforge"; do
+  for f in $(_all_scanned_files); do
     while IFS= read -r line; do
       [[ -z "${line}" ]] && continue
       case "${f}" in

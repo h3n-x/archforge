@@ -165,14 +165,45 @@ validate_nftables() {
     return 1
   fi
   if command -v nft &>/dev/null; then
-    local out cmd=(nft -c -f "${nft_file}")
-    [[ "${EUID}" -ne 0 ]] && cmd=(sudo nft -c -f "${nft_file}")
-    if [[ "${ARCHFORGE_TEST:-false}" == "true" ]]; then
-      return 0
-    fi
-    if ! out="$("${cmd[@]}" 2>&1)"; then
-      log_error "nftables validation check failed for ${nft_file}:\n${out}"
-      return 1
+    local out
+    if [[ "${DRY_RUN:-false}" == "true" || "${ARCHFORGE_TEST:-false}" == "true" ]]; then
+      # Mode: DRY-RUN or TEST — never prompt for interactive sudo password
+      if [[ "${EUID}" -eq 0 ]]; then
+        if ! out="$(nft -c -f "${nft_file}" 2>&1)"; then
+          log_error "nftables syntax check failed for ${nft_file}:\n${out}"
+          return 1
+        fi
+      elif sudo -n true 2>/dev/null; then
+        if ! out="$(sudo -n nft -c -f "${nft_file}" 2>&1)"; then
+          log_error "nftables syntax check failed for ${nft_file}:\n${out}"
+          return 1
+        fi
+      else
+        log_dry "[dry-run] skipped privileged nft syntax check (run with sudo to validate against kernel netfilter)"
+        return 0
+      fi
+    else
+      # Mode: REAL EXECUTION (DRY_RUN=false, ARCHFORGE_TEST=false)
+      if [[ "${EUID}" -eq 0 ]]; then
+        if ! out="$(nft -c -f "${nft_file}" 2>&1)"; then
+          log_error "nftables syntax check failed for ${nft_file}:\n${out}"
+          return 1
+        fi
+      elif sudo -n true 2>/dev/null; then
+        if ! out="$(sudo -n nft -c -f "${nft_file}" 2>&1)"; then
+          log_error "nftables syntax check failed for ${nft_file}:\n${out}"
+          return 1
+        fi
+      elif [[ -t 0 ]]; then
+        log_info "Validating nftables ruleset syntax (requires sudo)..."
+        if ! out="$(sudo nft -c -f "${nft_file}" 2>&1)"; then
+          log_error "nftables syntax check failed for ${nft_file}:\n${out}"
+          return 1
+        fi
+      else
+        log_error "nftables validation requires sudo privileges, but no active sudo session is available."
+        return 1
+      fi
     fi
   fi
   return 0
