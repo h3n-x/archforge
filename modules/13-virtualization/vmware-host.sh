@@ -13,6 +13,11 @@ source "${ARCHFORGE_DIR}/lib/packages.sh"
 # shellcheck disable=SC1091
 source "${ARCHFORGE_DIR}/lib/backup.sh"
 
+# Licensing note: VMware Workstation Pro is free for all personal and commercial use
+# without requiring a license key. Broadcom officially made it free for personal use
+# on May 13, 2024 and expanded it to all users on Nov 11, 2024:
+# - https://blogs.vmware.com/workstation/2024/05/vmware-workstation-pro-now-available-free-for-personal-use.html
+# - https://blogs.vmware.com/workstation/2024/11/vmware-fusion-and-workstation-are-now-free-for-all-users.html
 module_info() {
   MODULE_NAME="Virtualization: VMware Workstation (host)"
   MODULE_DESC="Install VMware Workstation Pro on Arch Linux as hypervisor host"

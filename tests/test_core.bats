@@ -258,11 +258,13 @@ EOF
 }
 
 @test "enable_user_service skips active start when no user session is active" {
+  mock_reset
   export ARCHFORGE_USER_RUNTIME_DIR="/tmp/nonexistent-runtime-dir-$$"
   export SUDO_USER="inactive_user"
   run enable_user_service wireplumber.service
   [ "$status" -eq 0 ]
   [[ "$output" == *"will start automatically upon login"* ]]
+  ! mock_ran "systemctl --user start"
   unset ARCHFORGE_USER_RUNTIME_DIR SUDO_USER
 }
 
@@ -307,6 +309,7 @@ EOF
 }
 
 @test "enable_user_service skips active start when loginctl detects multiple active sessions" {
+  mock_reset
   local fake_bin; fake_bin="$(mktemp -d)"
   cat > "${fake_bin}/loginctl" <<'EOF'
 #!/usr/bin/env bash
@@ -319,6 +322,7 @@ EOF
   PATH="${fake_bin}:${PATH}" run enable_user_service wireplumber.service
   [ "$status" -eq 0 ]
   [[ "$output" == *"Multiple active user sessions detected"* ]]
+  ! mock_ran "systemctl --user start"
 
   rm -rf "${fake_bin}"
 }
