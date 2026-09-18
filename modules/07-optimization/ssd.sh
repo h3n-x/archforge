@@ -49,6 +49,31 @@ _add_noatime_to_fstab() {
   ' "${file}" > "${file}.tmp" && mv "${file}.tmp" "${file}"
 }
 
+# Parse /etc/fstab and add discard to root mount options atomically.
+# Targets column 2 ($2 == "/") — works with UUID=, LABEL=, /dev/sdX formats.
+# Idempotent: no-op when discard already present.
+# Edge case: fstab uses "-" as the no-options placeholder; replaced with "discard"
+# (not ",discard") to avoid producing invalid syntax like "-,discard".
+_add_discard_to_fstab() {
+  local file="$1"
+  if awk '$2 == "/" {print $4}' "${file}" | grep -q 'discard'; then
+    log_skip "'discard' already present in fstab root entry."
+    return 0
+  fi
+  awk '
+    $2 == "/" && !/discard/ {
+      if ($4 == "-") {
+        # "-" is fstab'\''s no-options placeholder; replace rather than prepend comma
+        $4 = "discard"
+      } else {
+        i = index($0, $4)
+        $0 = substr($0, 1, i + length($4) - 1) ",discard" substr($0, i + length($4))
+      }
+    }
+    { print }
+  ' "${file}" > "${file}.tmp" && mv "${file}.tmp" "${file}"
+}
+
 # Detect if the root device uses dm-crypt/LUKS.
 # Source: aur-wiki-solid-state-drive.txt — dm-crypt section:
 # "dm-crypt supports passing through discard requests... has security
@@ -259,23 +284,7 @@ _configure_continuous_trim() {
   backup_file "/etc/fstab"
   cp /etc/fstab "${tmp_fstab}"
 
-  # Add 'discard' to root entry options (idempotent)
-  if awk '$2 == "/" {print $4}' "${tmp_fstab}" | grep -q 'discard'; then
-    log_skip "'discard' already present in fstab root entry."
-    return 0
-  fi
-
-  awk '
-    $2 == "/" && !/discard/ {
-      if ($4 == "-") {
-        $4 = "discard"
-      } else {
-        i = index($0, $4)
-        $0 = substr($0, 1, i + length($4) - 1) ",discard" substr($0, i + length($4))
-      }
-    }
-    { print }
-  ' "${tmp_fstab}" > "${tmp_fstab}.tmp" && mv "${tmp_fstab}.tmp" "${tmp_fstab}"
+  _add_discard_to_fstab "${tmp_fstab}"
 
   if ! validate_fstab "${tmp_fstab}"; then
     log_error "Aborting continuous TRIM fstab modification — syntax validation failed."
