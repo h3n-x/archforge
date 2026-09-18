@@ -108,6 +108,7 @@ Instala el script `archforge` y copia `lib/` y `modules/` bajo `$(PREFIX)/share/
 | `nvidia` | Graphics: NVIDIA driver | Gráficos | [Instalación del driver propietario de NVIDIA](https://wiki.archlinux.org/title/NVIDIA) |
 | `steam` | Gaming: Steam | Gaming | [Steam, deps Proton/Wine, fd-limit, GameMode, MangoHud](https://wiki.archlinux.org/title/Steam) |
 | `audio` | Peripherals: Audio (PipeWire & WirePlumber) | Periféricos | [PipeWire, WirePlumber, emulación PulseAudio](https://wiki.archlinux.org/title/PipeWire) |
+| `bluetooth` | Peripherals: Bluetooth (BlueZ) | Periféricos | [BlueZ, bluetoothctl, GUI blueman](https://wiki.archlinux.org/title/Bluetooth) |
 | `printing` | Peripherals: Printing (CUPS) | Periféricos | [CUPS, drivers de impresora, avahi](https://wiki.archlinux.org/title/CUPS) |
 | `vmware-host` | Virtualization: VMware Workstation (host) | Virtualización | [Configuración de host VMware Workstation](https://wiki.archlinux.org/title/VMware) |
 

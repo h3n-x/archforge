@@ -108,6 +108,7 @@ This installs the `archforge` script and copies `lib/` and `modules/` under `$(P
 | `nvidia` | Graphics: NVIDIA driver | Graphics | [Proprietary NVIDIA driver install](https://wiki.archlinux.org/title/NVIDIA) |
 | `steam` | Gaming: Steam | Gaming | [Steam, Proton/Wine deps, fd-limit, GameMode, MangoHud](https://wiki.archlinux.org/title/Steam) |
 | `audio` | Peripherals: Audio (PipeWire & WirePlumber) | Peripherals | [PipeWire, WirePlumber, PulseAudio emulation](https://wiki.archlinux.org/title/PipeWire) |
+| `bluetooth` | Peripherals: Bluetooth (BlueZ) | Peripherals | [BlueZ, bluetoothctl, blueman GUI](https://wiki.archlinux.org/title/Bluetooth) |
 | `printing` | Peripherals: Printing (CUPS) | Peripherals | [CUPS, printer drivers, avahi](https://wiki.archlinux.org/title/CUPS) |
 | `vmware-host` | Virtualization: VMware Workstation (host) | Virtualization | [VMware Workstation host setup](https://wiki.archlinux.org/title/VMware) |
 

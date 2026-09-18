@@ -5,6 +5,8 @@
 ### Added
 - **Audio Module**:
   - **audio.sh**: Complete modern audio stack (`pipewire`, `pipewire-audio`, `pipewire-pulse`, `pipewire-alsa`, `wireplumber`), optional JACK replacement (`pipewire-jack`), optional GUI volume control (`pavucontrol`), and automatic activation of systemd user services (`pipewire.service`, `pipewire-pulse.service`, `wireplumber.service`) via `enable_user_service`.
+- **Bluetooth Module**:
+  - **bluetooth.sh**: Full BlueZ Bluetooth protocol stack (`bluez`, `bluez-utils`), optional GTK manager (`blueman`), system `bluetooth.service` activation, rfkill software-block detection and auto-unblock, and declared `MODULE_DEPENDS="audio"` with PipeWire audio integration checks.
 - **Core Helpers & Multi-User Safety**:
   - **lib/core.sh**: Added `enable_user_service` to manage `systemctl --user` units safely across chroot/headless, single-user desktop, and multi-user environments with `loginctl` fallback; added `run_cmd_secret` to execute commands handling secrets without persisting credentials to disk.
 - **TUI & ArchWiki Integration**:

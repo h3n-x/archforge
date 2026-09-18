@@ -388,6 +388,7 @@ wiki_source_to_urls() {
     case "${fname}" in
       aur-wiki-amd-graphics.txt)                         url="https://wiki.archlinux.org/title/AMDGPU" ;;
       aur-wiki-arch-boot-process.txt)                    url="https://wiki.archlinux.org/title/Arch_boot_process" ;;
+      aur-wiki-bluetooth.txt)                            url="https://wiki.archlinux.org/title/Bluetooth" ;;
       aur-wiki-CUPS-Printer-specific-problems.txt)       url="https://wiki.archlinux.org/title/CUPS/Printer-specific_problems" ;;
       aur-wiki-CUPS-Troubleshooting.txt)                 url="https://wiki.archlinux.org/title/CUPS/Troubleshooting" ;;
       aur-wiki-CUPS.txt)                                 url="https://wiki.archlinux.org/title/CUPS" ;;
