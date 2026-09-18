@@ -195,3 +195,32 @@ teardown() {
 
   rm -f "$old_path"
 }
+
+@test "_needs_root_for_path detects unwritable destination" {
+  if [[ "${EUID}" -ne 0 ]]; then
+    run _needs_root_for_path "/etc/archforge-unwritable-test-file"
+    [ "$status" -eq 0 ]
+  fi
+}
+
+@test "_get_default_backup_base uses user home under SUDO_USER" {
+  local cur_user; cur_user="$(id -un)"
+  export SUDO_USER="${cur_user}"
+  unset BACKUP_BASE_DIR
+  local base; base="$(_get_default_backup_base)"
+  [[ "${base}" == *"${cur_user}/.local/share/archforge/backups" ]]
+}
+
+@test "backup_file in DRY_RUN does not write file to disk" {
+  export DRY_RUN=true ARCHFORGE_TEST=false
+  export BACKUP_BASE_DIR="/tmp/archforge-dryrun-base-$$"
+  export SESSION_ID="dryrun-session-1"
+  local test_file="/tmp/archforge-dryrun-src-$$"
+  echo "content" > "${test_file}"
+
+  backup_file "${test_file}"
+  local copied="${BACKUP_BASE_DIR}/${SESSION_ID}${test_file}"
+  [ ! -f "${copied}" ]
+
+  rm -rf "${BACKUP_BASE_DIR}" "${test_file}"
+}

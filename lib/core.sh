@@ -100,6 +100,84 @@ require_root() {
   [[ "${EUID}" -eq 0 ]] || die "This operation requires root. Re-run with sudo."
 }
 
+# ── sudo keepalive ────────────────────────────────────────────────────────────
+_SUDO_KEEPALIVE_PID=""
+
+start_sudo_keepalive() {
+  if [[ "${ARCHFORGE_TEST:-false}" == "true" ]] || [[ "${DRY_RUN:-false}" == "true" ]]; then
+    return 0
+  fi
+  if command -v sudo &>/dev/null && [[ -t 0 ]]; then
+    if sudo -v 2>/dev/null; then
+      (
+        while true; do
+          sleep 60
+          sudo -n -v 2>/dev/null || exit 0
+        done
+      ) &
+      _SUDO_KEEPALIVE_PID=$!
+    fi
+  fi
+}
+
+stop_sudo_keepalive() {
+  if [[ -n "${_SUDO_KEEPALIVE_PID:-}" ]]; then
+    kill "${_SUDO_KEEPALIVE_PID}" 2>/dev/null || true
+    wait "${_SUDO_KEEPALIVE_PID}" 2>/dev/null || true
+    _SUDO_KEEPALIVE_PID=""
+  fi
+}
+
+# ── syntax validation helpers ─────────────────────────────────────────────────
+validate_fstab() {
+  local fstab_file="$1"
+  if [[ ! -s "${fstab_file}" ]]; then
+    log_error "fstab validation failed: file is empty (${fstab_file})"
+    return 1
+  fi
+  # Must contain root mount point (/)
+  if ! awk '$2 == "/" { found=1 } END { exit !found }' "${fstab_file}"; then
+    log_error "fstab validation failed: missing root mount point (/) in ${fstab_file}"
+    return 1
+  fi
+  # Validate column count for non-comment, non-empty lines (must have exactly 6 fields)
+  local invalid_lines
+  invalid_lines="$(awk 'NF && !/^[[:space:]]*#/ && NF != 6 { print NR ": " $0 }' "${fstab_file}")"
+  if [[ -n "${invalid_lines}" ]]; then
+    log_error "fstab syntax validation failed (expected 6 columns):\n${invalid_lines}"
+    return 1
+  fi
+  if command -v findmnt &>/dev/null; then
+    local out
+    out="$(findmnt --verify --tab-file "${fstab_file}" 2>&1 || true)"
+    if echo "${out}" | grep -Eiq '[1-9][0-9]* parse error'; then
+      log_error "fstab parse error detected:\n${out}"
+      return 1
+    fi
+  fi
+  return 0
+}
+
+validate_nftables() {
+  local nft_file="$1"
+  if [[ ! -s "${nft_file}" ]]; then
+    log_error "nftables validation failed: file is empty (${nft_file})"
+    return 1
+  fi
+  if command -v nft &>/dev/null; then
+    local out cmd=(nft -c -f "${nft_file}")
+    [[ "${EUID}" -ne 0 ]] && cmd=(sudo nft -c -f "${nft_file}")
+    if [[ "${ARCHFORGE_TEST:-false}" == "true" ]]; then
+      return 0
+    fi
+    if ! out="$("${cmd[@]}" 2>&1)"; then
+      log_error "nftables validation check failed for ${nft_file}:\n${out}"
+      return 1
+    fi
+  fi
+  return 0
+}
+
 # ── wiki_source_to_urls ───────────────────────────────────────────────────────
 # Map MODULE_WIKI_SOURCE filenames to official ArchWiki URLs.
 # Usage: wiki_source_to_urls "file1.txt file2.txt"

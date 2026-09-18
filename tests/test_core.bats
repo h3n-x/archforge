@@ -59,3 +59,39 @@ setup() {
   run confirm "question?"
   [ "$status" -eq 0 ]
 }
+
+@test "validate_fstab passes for valid fstab with root mount" {
+  local tmp
+  tmp="$(mktemp)"
+  echo "UUID=1234 / ext4 defaults,noatime 0 1" > "${tmp}"
+  run validate_fstab "${tmp}"
+  [ "$status" -eq 0 ]
+  rm -f "${tmp}"
+}
+
+@test "validate_fstab fails when root mount is missing" {
+  local tmp
+  tmp="$(mktemp)"
+  echo "UUID=1234 /home ext4 defaults 0 2" > "${tmp}"
+  run validate_fstab "${tmp}"
+  [ "$status" -ne 0 ]
+  rm -f "${tmp}"
+}
+
+@test "validate_fstab fails for empty file" {
+  local tmp
+  tmp="$(mktemp)"
+  run validate_fstab "${tmp}"
+  [ "$status" -ne 0 ]
+  rm -f "${tmp}"
+}
+
+@test "validate_nftables passes in test mode" {
+  local tmp
+  tmp="$(mktemp)"
+  echo "table inet filter { chain input { type filter hook input priority 0; } }" > "${tmp}"
+  export ARCHFORGE_TEST=true
+  run validate_nftables "${tmp}"
+  [ "$status" -eq 0 ]
+  rm -f "${tmp}"
+}

@@ -24,7 +24,9 @@ pacman_install() {
     return 0
   fi
   run_cmd sudo pacman -S --noconfirm --needed "${to_install[@]}"
-  echo "pacman: ${to_install[*]}" >> "/tmp/archforge-pkgs-$$.log"
+  if [[ "${DRY_RUN:-false}" != "true" ]]; then
+    echo "pacman: ${to_install[*]}" >> "/tmp/archforge-pkgs-$$.log"
+  fi
 }
 
 aur_install() {
@@ -37,7 +39,9 @@ aur_install() {
     return 0
   fi
   run_cmd "${AUR_HELPER}" -S --noconfirm --needed "$@"
-  echo "aur(${AUR_HELPER}): $*" >> "/tmp/archforge-pkgs-$$.log"
+  if [[ "${DRY_RUN:-false}" != "true" ]]; then
+    echo "aur(${AUR_HELPER}): $*" >> "/tmp/archforge-pkgs-$$.log"
+  fi
 }
 
 detect_aur_helper() {

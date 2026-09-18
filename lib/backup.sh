@@ -3,10 +3,26 @@
 # All state written to disk — safe across subshell boundaries.
 # shellcheck shell=bash
 
+_get_default_backup_base() {
+  if [[ -n "${BACKUP_BASE_DIR:-}" ]]; then
+    echo "${BACKUP_BASE_DIR}"
+    return 0
+  fi
+  local user_home="${HOME}"
+  if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+    local entry
+    entry="$(getent passwd "${SUDO_USER}" 2>/dev/null || true)"
+    if [[ -n "${entry}" ]]; then
+      user_home="$(echo "${entry}" | cut -d: -f6)"
+    fi
+  fi
+  echo "${user_home}/.local/share/archforge/backups"
+}
+
 _backup_dir() {
   # SESSION_ID is set by the caller (main entry point or test setup)
   # shellcheck disable=SC2154
-  echo "${BACKUP_BASE_DIR:-${HOME}/.local/share/archforge/backups}/${SESSION_ID}"
+  echo "$(_get_default_backup_base)/${SESSION_ID}"
 }
 
 _manifest_file() {
@@ -33,16 +49,21 @@ _ensure_manifest() {
 backup_file() {
   local path="$1"
 
+  if [[ "${ARCHFORGE_TEST:-false}" == "true" ]]; then
+    echo "${path}" >> "${MOCK_BACKUP_LOG:-/tmp/archforge-mock-backup-$$.log}"
+  fi
+
+  if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    log_dry "backup_file ${path}"
+    return 0
+  fi
+
   _ensure_manifest
 
   local session_dir
   session_dir="$(_backup_dir)" || true
   local manifest
   manifest="$(_manifest_file)" || true
-
-  if [[ "${ARCHFORGE_TEST:-false}" == "true" ]]; then
-    echo "${path}" >> "${MOCK_BACKUP_LOG:-/tmp/archforge-mock-backup-$$.log}"
-  fi
 
   if [[ ! -e "${path}" && ! -L "${path}" ]]; then
     # Path does not exist yet — the caller is about to create it. Record
@@ -97,7 +118,8 @@ record_attr() {
 }
 
 list_sessions() {
-  local base="${BACKUP_BASE_DIR:-${HOME}/.local/share/archforge/backups}"
+  local base
+  base="$(_get_default_backup_base)"
   [[ -d "${base}" ]] || { echo "No backup sessions found."; return 0; }
   local i=1
   for session_dir in "${base}"/*/; do
@@ -115,7 +137,8 @@ list_sessions() {
 }
 
 restore_session() {
-  local base="${BACKUP_BASE_DIR:-${HOME}/.local/share/archforge/backups}"
+  local base
+  base="$(_get_default_backup_base)"
   list_sessions
 
   local sessions_file
@@ -209,6 +232,18 @@ _restore_file_picker() {
   _restore_entry "${session_dir}" "${manifest}" "${path}" "${type}" "${line}"
 }
 
+_needs_root_for_path() {
+  local target="$1"
+  [[ "${EUID}" -eq 0 ]] && return 1
+  local parent
+  parent="$(dirname "${target}")"
+  if [[ -e "${target}" ]]; then
+    [[ ! -w "${target}" ]]
+  else
+    [[ ! -w "${parent}" ]]
+  fi
+}
+
 _restore_entry() {
   local session_dir="$1" manifest="$2" path="$3" type="$4" manifest_line="$5"
 
@@ -218,19 +253,33 @@ _restore_entry() {
     confirm "Restore ${path}?" || return 0
   fi
 
+  local sudo_cmd=""
+  if _needs_root_for_path "${path}"; then
+    sudo_cmd="sudo"
+  fi
+
   # Remove immutable flag if previously set
   local attr_line
   attr_line="$(grep "ATTR_PATH=${path} " "${manifest}" 2>/dev/null || true)"
   if [[ -n "${attr_line}" && "${attr_line}" =~ LSATTR=([^[:space:]]+) ]] && [[ "${BASH_REMATCH[1]}" == *i* ]]; then
-    run_cmd chattr -i "${path}" 2>/dev/null || true
+    if [[ -n "${sudo_cmd}" ]]; then
+      run_cmd sudo chattr -i "${path}" 2>/dev/null || true
+    else
+      run_cmd chattr -i "${path}" 2>/dev/null || true
+    fi
   fi
 
   case "${type}" in
     symlink)
       local target=""
       [[ "${manifest_line}" =~ TARGET=([^[:space:]]+) ]] && target="${BASH_REMATCH[1]}"
-      mkdir -p "$(dirname "${path}")"
-      run_cmd ln -sf "${target}" "${path}"
+      if [[ -n "${sudo_cmd}" ]]; then
+        run_cmd sudo mkdir -p "$(dirname "${path}")"
+        run_cmd sudo ln -sf "${target}" "${path}"
+      else
+        mkdir -p "$(dirname "${path}")"
+        run_cmd ln -sf "${target}" "${path}"
+      fi
       log_ok "Restored symlink: ${path} → ${target}"
       ;;
     file)
@@ -239,15 +288,26 @@ _restore_entry() {
       local mode owner
       [[ "${manifest_line}" =~ MODE=([^[:space:]]+) ]] && mode="${BASH_REMATCH[1]}"
       [[ "${manifest_line}" =~ OWNER=([^[:space:]]+) ]] && owner="${BASH_REMATCH[1]}"
-      mkdir -p "$(dirname "${path}")"
-      run_cmd cp "${backup_copy}" "${path}"
-      [[ -n "${mode}" ]]  && run_cmd chmod "${mode}" "${path}"
-      [[ -n "${owner}" ]] && run_cmd chown "${owner}" "${path}"
+      if [[ -n "${sudo_cmd}" ]]; then
+        run_cmd sudo mkdir -p "$(dirname "${path}")"
+        run_cmd sudo cp "${backup_copy}" "${path}"
+        [[ -n "${mode}" ]]  && run_cmd sudo chmod "${mode}" "${path}"
+        [[ -n "${owner}" ]] && run_cmd sudo chown "${owner}" "${path}"
+      else
+        mkdir -p "$(dirname "${path}")"
+        run_cmd cp "${backup_copy}" "${path}"
+        [[ -n "${mode}" ]]  && run_cmd chmod "${mode}" "${path}"
+        [[ -n "${owner}" ]] && run_cmd chown "${owner}" "${path}"
+      fi
       log_ok "Restored file: ${path}"
       ;;
     created)
       if [[ -e "${path}" || -L "${path}" ]]; then
-        run_cmd rm -f "${path}"
+        if [[ -n "${sudo_cmd}" ]]; then
+          run_cmd sudo rm -f "${path}"
+        else
+          run_cmd rm -f "${path}"
+        fi
         log_ok "Removed file created by archforge: ${path}"
       else
         log_skip "${path} already absent — nothing to remove."

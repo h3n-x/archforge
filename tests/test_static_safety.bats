@@ -26,7 +26,7 @@ _all_module_files() {
     matches="$(grep -nE '(^|[^A-Za-z0-9_])(sudo[[:space:]]+tee|\|[[:space:]]*sudo[[:space:]]+tee)' "${f}" \
       | grep -vE 'run_cmd' \
       | grep -vE '^[0-9]+:[[:space:]]*#' \
-      | grep -vE 'log_(info|warn|error|ok|skip|dry)[[:space:]]*"')"
+      | grep -vE 'log_(info|warn|error|ok|skip|dry)[[:space:]]*"' || true)"
     if [[ -n "${matches}" ]]; then
       echo "BYPASS FOUND in ${f}:" >&2
       echo "${matches}" >&2

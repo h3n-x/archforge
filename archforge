@@ -401,8 +401,10 @@ print_summary() {
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 main() {
-  printf '\033[3J'
-  clear
+  if [[ -t 1 ]]; then
+    printf '\033[3J'
+    clear 2>/dev/null || true
+  fi
   resolve_log_file
   parse_args "$@"
 
@@ -442,12 +444,14 @@ main() {
     modules_to_run=("${SELECTED_MODULES[@]}")
   fi
 
-  # Register cleanup of results file on session exit
-  trap 'rm -f "/tmp/archforge-results-$$.log" "/tmp/archforge-pkgs-$$.log"' EXIT
+  # Register cleanup of results file and background keepalive on session exit
+  trap 'stop_sudo_keepalive; rm -f "/tmp/archforge-results-$$.log" "/tmp/archforge-pkgs-$$.log"' EXIT
 
   [[ ${#modules_to_run[@]} -eq 0 ]] && { log_info "No modules selected."; exit 0; }
 
+  start_sudo_keepalive
   run_modules "${modules_to_run[@]}"
+  stop_sudo_keepalive
   print_summary
 }
 
