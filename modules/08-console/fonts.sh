@@ -12,10 +12,10 @@ source "${ARCHFORGE_DIR}/lib/packages.sh"
 
 module_info() {
   MODULE_NAME="Console: Fonts"
-  MODULE_DESC="Install terminus console font, noto-fonts, ttf-liberation"
+  MODULE_DESC="Install terminus console font, noto-fonts, ttf-liberation, nerd-fonts"
   MODULE_REQUIRES_ROOT=true
   MODULE_HW_WARN=""
-  MODULE_PACKAGES="terminus-font noto-fonts noto-fonts-emoji ttf-liberation"
+  MODULE_PACKAGES="terminus-font noto-fonts noto-fonts-emoji ttf-liberation ttf-jetbrains-mono-nerd"
   MODULE_AUR_PACKAGES=""
   MODULE_WIKI_SOURCE="aur-wiki-fonts.txt aur-wiki-Linux-console.txt aur-wiki-metric-compatible-fonts.txt"
   MODULE_DEPENDS=""
@@ -23,8 +23,15 @@ module_info() {
 
 module_run() {
   module_info
+  set +T 2>/dev/null || true
 
   pacman_install terminus-font noto-fonts noto-fonts-emoji ttf-liberation
+
+  # Nerd Fonts for Wayland bars (Waybar) and modern terminals
+  # ArchWiki: https://wiki.archlinux.org/title/Fonts
+  if confirm "Install JetBrains Mono Nerd Font (essential for icons in Waybar and Hyprland)?" "y"; then
+    pacman_install ttf-jetbrains-mono-nerd
+  fi
 
   backup_file "/etc/vconsole.conf"
 

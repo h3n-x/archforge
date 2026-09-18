@@ -148,8 +148,10 @@ _select_nvidia_family_manual() {
   echo "  [6] Tesla (G80/G90/GT2xx)                -> nvidia-340xx-dkms (obsolete)" >&2
   echo "  [q] Cancel" >&2
 
-  local choice
-  read -r -p "Choice: " choice
+  local choice="1"
+  if [[ "${YES_FLAG:-false}" != "true" && "${DRY_RUN:-false}" != "true" && "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    read -r -p "Choice: " choice
+  fi
   case "${choice}" in
     1) echo "blackwell" ;;
     2) echo "ada" ;;
@@ -170,11 +172,11 @@ _select_nvidia_driver() {
 
   case "${family}" in
     blackwell)
-      log_info "Blackwell GPU detected -> nvidia-open is the only supported driver."
+      log_info "Blackwell GPU detected -> nvidia-open is the only supported driver." >&2
       echo "nvidia-open"
       ;;
     ada|ampere|turing)
-      if [[ "${YES_FLAG:-false}" == "true" || "${DRY_RUN:-false}" == "true" ]]; then
+      if [[ "${YES_FLAG:-false}" == "true" || "${DRY_RUN:-false}" == "true" || "${ARCHFORGE_TEST:-false}" == "true" ]]; then
         echo "nvidia-open"
         return 0
       fi
@@ -191,23 +193,23 @@ _select_nvidia_driver() {
       esac
       ;;
     volta|pascal|maxwell2|maxwell1)
-      log_info "${family^} GPU detected -> nvidia-580xx-dkms is the supported driver."
+      log_info "${family^} GPU detected -> nvidia-580xx-dkms is the supported driver." >&2
       echo "nvidia-580xx-dkms"
       ;;
     kepler)
-      log_warn "Kepler support ended -- driver may not work with latest Xorg"
+      log_warn "Kepler support ended -- driver may not work with latest Xorg" >&2
       echo "nvidia-470xx-dkms"
       ;;
     fermi)
-      log_warn "Fermi support ended -- driver may not work with latest Xorg"
+      log_warn "Fermi support ended -- driver may not work with latest Xorg" >&2
       echo "nvidia-390xx-dkms"
       ;;
     tesla)
-      log_warn "Tesla driver is obsolete -- very limited functionality"
+      log_warn "Tesla driver is obsolete -- very limited functionality" >&2
       echo "nvidia-340xx-dkms"
       ;;
     *)
-      log_error "Unknown GPU family: ${family}"
+      log_error "Unknown GPU family: ${family}" >&2
       echo ""
       ;;
   esac
@@ -230,7 +232,7 @@ _install_driver_packages() {
     fi
   else
     log_warn "multilib repository not enabled in /etc/pacman.conf -- lib32 packages unavailable."
-    log_info "Enable [multilib] in /etc/pacman.conf and run 'sudo pacman -Sy' to unlock 32-bit support."
+    log_info "Enable [multilib] in /etc/pacman.conf and run 'sudo pacman -Syu' to unlock 32-bit support."
   fi
 
   case "${driver}" in
@@ -271,23 +273,64 @@ _install_driver_packages() {
   esac
 }
 
-# ── DRM KMS configuration ───────────────────────────────────────────────────
+# ── DRM KMS & Wayland configuration ─────────────────────────────────────────
 _configure_drm_kms() {
   local driver="$1"
 
-  # nvidia-open with nvidia-utils >= 560 has DRM enabled by default
-  if [[ "${driver}" == "nvidia-open" ]]; then
-    local nvidia_ver
-    nvidia_ver="$(pacman -Q nvidia-utils 2>/dev/null | awk '{print $2}' | cut -d. -f1 || echo "0")"
-    if [[ "${nvidia_ver}" -ge 560 ]]; then
-      log_info "nvidia-utils >= 560 detected -- DRM KMS is enabled by default. Skipping modprobe.conf."
-      return 0
+  # ArchWiki: https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
+  # Hyprland Wiki: https://wiki.hypr.land/Nvidia/
+  # DRM KMS and fbdev=1 are required for Wayland compositors (Hyprland, Sway, etc.)
+  # Early loading in initramfs is required regardless of driver version.
+  log_info "Writing DRM KMS modprobe configuration..."
+  backup_file "/etc/modprobe.d/nvidia.conf"
+  local tmp_modprobe
+  tmp_modprobe="$(mktemp)"
+  # shellcheck disable=SC2064
+  trap "rm -f '${tmp_modprobe}'" RETURN
+  cat > "${tmp_modprobe}" <<'EOF'
+# NVIDIA DRM KMS and Framebuffer device support
+# ArchWiki: https://wiki.archlinux.org/title/NVIDIA#DRM_kernel_mode_setting
+# Hyprland Wiki: https://wiki.hypr.land/Nvidia/
+options nvidia_drm modeset=1 fbdev=1
+EOF
+  run_cmd sudo install -Dm644 "${tmp_modprobe}" /etc/modprobe.d/nvidia.conf
+
+  # Early KMS loading in mkinitcpio.conf (ArchWiki & Hyprland Wiki)
+  if [[ -f "/etc/mkinitcpio.conf" ]]; then
+    backup_file "/etc/mkinitcpio.conf"
+    local current_modules
+    current_modules="$(grep '^MODULES=' /etc/mkinitcpio.conf 2>/dev/null || true)"
+    if echo "${current_modules}" | grep -q 'nvidia_drm'; then
+      log_info "NVIDIA early KMS modules already present in mkinitcpio.conf."
+    else
+      local tmp_mkini
+      tmp_mkini="$(mktemp)"
+      # shellcheck disable=SC2064
+      trap "rm -f '${tmp_mkini}'" RETURN
+      sed 's/^MODULES=(\(.*\))/MODULES=(\1 nvidia nvidia_modeset nvidia_uvm nvidia_drm)/' /etc/mkinitcpio.conf > "${tmp_mkini}"
+      run_cmd sudo cp "${tmp_mkini}" /etc/mkinitcpio.conf
+      log_ok "Added nvidia nvidia_modeset nvidia_uvm nvidia_drm to mkinitcpio MODULES."
     fi
   fi
 
-  log_info "Writing DRM KMS modprobe configuration..."
-  backup_file "/etc/modprobe.d/nvidia.conf"
-  run_cmd sudo tee /etc/modprobe.d/nvidia.conf <<< "options nvidia_drm modeset=1 fbdev=1" > /dev/null
+  # Wayland / Hyprland environment drop-in
+  local wayland_env="/etc/environment.d/10-nvidia-wayland.conf"
+  backup_file "${wayland_env}"
+  local tmp_env
+  tmp_env="$(mktemp)"
+  # shellcheck disable=SC2064
+  trap "rm -f '${tmp_env}'" RETURN
+  cat > "${tmp_env}" <<'EOF'
+# NVIDIA Wayland & Hyprland environment configuration
+# Source: https://wiki.hypr.land/Nvidia/
+LIBVA_DRIVER_NAME=nvidia
+__GLX_VENDOR_LIBRARY_NAME=nvidia
+NVD_BACKEND=direct
+ELECTRON_OZONE_PLATFORM_HINT=auto
+EOF
+  run_cmd sudo mkdir -p /etc/environment.d
+  run_cmd sudo install -Dm644 "${tmp_env}" "${wayland_env}"
+  log_ok "Configured NVIDIA Wayland/Hyprland environment drop-in in ${wayland_env}."
 
   # Regenerate initramfs
   log_info "Regenerating initramfs -- this may take 1-3 minutes..."
@@ -303,7 +346,6 @@ _configure_drm_kms() {
     log_error "mkinitcpio -P failed after ${elapsed}s."
     log_warn "Run 'sudo mkinitcpio -P' manually after reboot to complete setup."
     log_warn "The driver is installed but KMS may not load correctly until initramfs is regenerated."
-    # Do NOT exit 1 here -- driver is installed, initramfs failure is recoverable
   fi
 }
 
@@ -368,6 +410,7 @@ PRIME_EOF
 # ── Main ─────────────────────────────────────────────────────────────────────
 module_run() {
   module_info
+  set +T 2>/dev/null || true
 
   # HW_WARN check: require NVIDIA GPU
   if [[ "${DETECTED_GPU:-Unknown}" != *"NVIDIA"* ]]; then
