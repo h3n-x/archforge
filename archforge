@@ -72,6 +72,15 @@ parse_args() {
       --yes|-y)        YES_FLAG=true ;;
       --modules=*)     IFS=',' read -ra REQUESTED_MODULES <<< "${1#*=}" ;;
       --modules)       shift; IFS=',' read -ra REQUESTED_MODULES <<< "$1" ;;
+      --preview-module=*)
+                       preview_module "${1#*=}"
+                       exit $?
+                       ;;
+      --preview-module)
+                       shift
+                       preview_module "$1"
+                       exit $?
+                       ;;
       --aur-helper=*)  AUR_HELPER="${1#*=}" ;;
       --help|-h)       _print_help; exit 0 ;;
       --version)       echo "archforge v${ARCHFORGE_VERSION}"; exit 0 ;;
@@ -101,11 +110,13 @@ _print_help() {
 archforge v${ARCHFORGE_VERSION} — Arch Linux post-installation toolkit
 
 Usage:
-  archforge [options]           Run module selector and apply pipeline
-  archforge restore             Interactive restore from backup session
+  archforge [options]              Run module selector and apply pipeline
+  archforge restore                Interactive restore from backup session
+  archforge --preview-module ID    Preview module info and official ArchWiki sources
 
 Options:
   --modules m1,m2,...    Run specific modules (skips menu)
+  --preview-module=MOD   Preview module details and ArchWiki sources
   --dry-run              Show what would change, execute nothing
   --yes, -y              Skip all confirmation prompts
   --aur-helper=NAME      Override AUR helper (yay, paru, ...)
@@ -147,17 +158,6 @@ _load_module_info() {
 }
 
 # ── Module pipeline ───────────────────────────────────────────────────────────
-_find_module_file() {
-  local id="$1"
-  local entry
-  for entry in "${ALL_MODULES[@]}"; do
-    if [[ "${entry%%:*}" == "${id}" ]]; then
-      echo "${ARCHFORGE_DIR}/modules/${entry#*:}"
-      return 0
-    fi
-  done
-  return 1
-}
 
 run_modules() {
   local results_file="/tmp/archforge-results-$$.log"

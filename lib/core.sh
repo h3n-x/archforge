@@ -209,6 +209,32 @@ validate_nftables() {
   return 0
 }
 
+# ── Module file resolver ──────────────────────────────────────────────────────
+# Resolves a module identifier (e.g. 'nvidia') or file path to its full path.
+_find_module_file() {
+  local target="$1"
+  if [[ -f "${target}" ]]; then
+    echo "${target}"
+    return 0
+  fi
+  if [[ -n "${ALL_MODULES+x}" && ${#ALL_MODULES[@]} -gt 0 ]]; then
+    local entry
+    for entry in "${ALL_MODULES[@]}"; do
+      if [[ "${entry%%:*}" == "${target}" ]]; then
+        echo "${ARCHFORGE_DIR}/modules/${entry#*:}"
+        return 0
+      fi
+    done
+  fi
+  local match
+  match="$(find "${ARCHFORGE_DIR}/modules" -name "${target}.sh" -print -quit 2>/dev/null || true)"
+  if [[ -n "${match}" && -f "${match}" ]]; then
+    echo "${match}"
+    return 0
+  fi
+  return 1
+}
+
 # ── wiki_source_to_urls ───────────────────────────────────────────────────────
 # Map MODULE_WIKI_SOURCE filenames to official ArchWiki URLs.
 # Usage: wiki_source_to_urls "file1.txt file2.txt"

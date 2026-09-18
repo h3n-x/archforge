@@ -28,16 +28,40 @@ _has_utf8() {
   [[ "${lc,,}" == *utf-8* ]] || [[ "${lc,,}" == *utf8* ]]
 }
 
+# ── Color & Styling Initialization ────────────────────────────────────────────
+_init_colors() {
+  if [[ -n "${NO_COLOR:-}" || "${TERM:-}" == "dumb" ]]; then
+    C_CYAN=""
+    C_BOLD=""
+    C_DIM=""
+    C_YELLOW=""
+    C_RED=""
+    C_GREEN=""
+    C_RESET=""
+    C_DIM_CYAN=""
+  else
+    C_CYAN=$'\033[0;36m'
+    C_BOLD=$'\033[1m'
+    C_DIM=$'\033[2m'
+    C_YELLOW=$'\033[1;33m'
+    C_RED=$'\033[1;31m'
+    C_GREEN=$'\033[1;32m'
+    C_RESET=$'\033[0m'
+    C_DIM_CYAN=$'\033[2;36m'
+  fi
+}
+
 # ── Banner ────────────────────────────────────────────────────────────────────
 _BANNER_PRINTED=false
 
 _print_banner() {
   [[ "${_BANNER_PRINTED}" == true ]] && return 0
   _BANNER_PRINTED=true
-  local c=$'\033[0;36m'
-  local b=$'\033[1m'
-  local d=$'\033[2m'
-  local r=$'\033[0m'
+  _init_colors
+  local c="${C_CYAN}"
+  local b="${C_BOLD}"
+  local d="${C_DIM}"
+  local r="${C_RESET}"
 
   printf '%s\n' "${c}" \
     ' █████╗ ██████╗  ██████╗██╗  ██╗    ███████╗ ██████╗ ██████╗  ██████╗ ███████╗' \
@@ -122,7 +146,8 @@ _parse_entry() {
 # ── Compact menu item: [nn] id only (+ optional ⚠), UTF-8 colors ──────────────
 _menu_compact_item_utf8() {
   local num="$1" mid="$2" mhw="$3" idw="$4"
-  local b=$'\033[1m' y=$'\033[1;33m' dc=$'\033[2;36m' r=$'\033[0m'
+  _init_colors
+  local b="${C_BOLD}" y="${C_YELLOW}" dc="${C_DIM_CYAN}" r="${C_RESET}"
   local num_col="${dc}"
   if [[ -n "${mhw}" ]]; then
     num_col="${y}"
@@ -148,8 +173,10 @@ _menu_compact_item_ascii() {
   return 0
 }
 
-# ── Module list (flat): two columns, no categories / borders / descriptions ──
-# Order matches __list (same as ALL_MODULES in archforge). Numbers 1…n_left left col, rest right.
+# ── Module list table: dynamic columns based on terminal width ────────────────
+# Order matches __list (same as ALL_MODULES in archforge).
+# cols >= 90: 2-column balanced grid
+# cols < 90:  1-column detailed list with descriptions
 # shellcheck disable=SC2034
 _build_and_print_module_table() {
   # shellcheck disable=SC2178
@@ -159,7 +186,7 @@ _build_and_print_module_table() {
   # shellcheck disable=SC2178
   local -n __all_ids=$3
 
-  local -a _nums=() _mids=() _mhws=()
+  local -a _nums=() _mids=() _mhws=() _mdescs=()
   local counter=1
   local entry _eid _ecat _eshort _edesc _ehw
 
@@ -170,12 +197,55 @@ _build_and_print_module_table() {
     _nums+=("${counter}")
     _mids+=("${_eid}")
     _mhws+=("${_ehw}")
+    _mdescs+=("${_edesc}")
     counter=$(( counter + 1 ))
   done
 
   local n=${#_mids[@]}
   (( n == 0 )) && return 0
 
+  local cols="${COLUMNS:-}"
+  [[ -z "${cols}" ]] && cols="$(tput cols 2>/dev/null || echo 80)"
+
+  local _use_utf8=false
+  _has_utf8 && _use_utf8=true
+
+  _init_colors
+  local b="${C_BOLD}" y="${C_YELLOW}" dc="${C_DIM_CYAN}" d="${C_DIM}" r="${C_RESET}"
+
+  # ── Layout Branch: 1 column if cols < 90 ────────────────────────────────────
+  if (( cols < 90 )); then
+    local idx
+    for (( idx=0; idx<n; idx++ )); do
+      local num="${_nums[idx]}"
+      local mid="${_mids[idx]}"
+      local mhw="${_mhws[idx]}"
+      local desc="${_mdescs[idx]}"
+      local num_col="${dc}"
+      [[ -n "${mhw}" ]] && num_col="${y}"
+
+      local warn_mark="  "
+      if [[ -n "${mhw}" ]]; then
+        [[ "${_use_utf8}" == true ]] && warn_mark="${y}⚠${r} " || warn_mark="! "
+      fi
+
+      if [[ -n "${desc}" ]]; then
+        printf '  %s[%2d]%s  %s%-14s%s %s%s—%s %s\n' \
+          "${num_col}" "${num}" "${r}" \
+          "${b}" "${mid}" "${r}" \
+          "${warn_mark}" "${d}" "${r}" "${desc}" >&2
+      else
+        printf '  %s[%2d]%s  %s%-14s%s %s\n' \
+          "${num_col}" "${num}" "${r}" \
+          "${b}" "${mid}" "${r}" \
+          "${warn_mark}" >&2
+      fi
+    done
+    printf '\n' >&2
+    return 0
+  fi
+
+  # ── Layout Branch: 2 columns if cols >= 90 ──────────────────────────────────
   local idw=10
   local mid ml
   for mid in "${_mids[@]}"; do
@@ -189,13 +259,8 @@ _build_and_print_module_table() {
   fi
 
   local n_left=$(( (n + 1) / 2 ))
-  local _use_utf8=false
-  if _has_utf8; then
-    _use_utf8=true
-  fi
 
   local row=0 li ri
-  # Use while, not for ((…)), so set -e (archforge) does not exit when the final C-for test fails.
   while (( row < n_left )); do
     li=${row}
     ri=$(( row + n_left ))
@@ -222,29 +287,23 @@ _build_and_print_module_table() {
 }
 
 # ── Input prompt ───────────────────────────────────────────────────────────────
-# Box width matches ASCII banner (not terminal width) so borders do not extend past the logo.
 _print_prompt() {
-  local c=$'\033[0;36m'
-  local d=$'\033[2m'
-  local r=$'\033[0m'
+  _init_colors
+  local c="${C_CYAN}"
+  local d="${C_DIM}"
+  local r="${C_RESET}"
 
   local box_w="${ARCHFORGE_BANNER_WIDTH}"
 
   if _has_utf8; then
-    # Header fill: "╭─  Select modules " + fill + "╮"
-    # "╭─  Select modules " = 19 chars; then fill + "╮" must reach box_w
-    # fill_len = box_w - 19 - 1 (╮)  = box_w - 20
     local hdr_fill
-    # shellcheck disable=SC2312
     printf -v hdr_fill '%0.s─' $(seq 1 $(( box_w - 20 )))
     local bot_fill
-    # shellcheck disable=SC2312
     printf -v bot_fill '%0.s─' $(seq 1 $(( box_w - 2 )))
 
-    # Content rows: "│" + 2 spaces + text + pad + "│" = box_w (avoid UTF-8 in pad width).
-    local content_w=$(( box_w - 4 ))  # between "│  " and "  │"
+    local content_w=$(( box_w - 4 ))
     printf '%s╭─  Select modules %s╮%s\n' "${d}" "${hdr_fill}" "${r}" >&2
-    local row1="Numbers, names, or all - q quits - separate with spaces or commas"
+    local row1="Numbers, ranges (1-4), names, or all - q quits - separate with spaces"
     local row1_pad=$(( content_w - ${#row1} ))
     (( row1_pad < 0 )) && row1_pad=0
     printf '%s│%s  %s%*s%s%s│%s\n' \
@@ -255,41 +314,178 @@ _print_prompt() {
     local afill_len=$(( box_w - 20 ))
     (( afill_len < 1 )) && afill_len=1
     local afill
-    # shellcheck disable=SC2312
     printf -v afill '%0.s-' $(seq 1 "${afill_len}")
     printf '+-- Select modules %s+\n' "${afill}" >&2
-    local row1="Numbers, names, or all - q quits - separate with spaces or commas"
+    local row1="Numbers, ranges (1-4), names, or all - q quits - separate with spaces"
     local content_w=$(( box_w - 4 ))
     local row1_pad=$(( content_w - ${#row1} ))
     (( row1_pad < 0 )) && row1_pad=0
     printf '|  %s%*s|\n' "${row1}" "${row1_pad}" "" >&2
     local bfill
-    # shellcheck disable=SC2312
     printf -v bfill '%0.s-' $(seq 1 $(( box_w - 2 )))
     printf '+%s+\n' "${bfill}" >&2
     printf ' > ' >&2
   fi
 }
 
-# ── Public entry point ─────────────────────────────────────────────────────────
-show_menu() {
+# ── TUI Engine Detection ──────────────────────────────────────────────────────
+# Detects whether to use D3 (fzf with preview) or D1 (native bash fallback).
+_detect_tui_engine() {
+  # (a) If stdin or stdout is not a TTY (headless, pipe, CI), no interactive TUI
+  if [[ ! -t 0 || ! -t 1 ]] && [[ "${ARCHFORGE_TEST_TTY:-false}" != "true" ]]; then
+    echo "none"
+    return 0
+  fi
+
+  # (b) User explicitly forced classic mode via env or flag
+  if [[ "${ARCHFORGE_TUI:-}" == "classic" ]]; then
+    echo "d1"
+    return 0
+  fi
+
+  # (c) Check if fzf is available in PATH
+  if ! command -v fzf &>/dev/null; then
+    echo "d1"
+    return 0
+  fi
+
+  # (e) Check terminal geometry
+  local cols lines
+  cols="${COLUMNS:-}"
+  lines="${LINES:-}"
+  [[ -z "${cols}" ]] && cols="$(tput cols 2>/dev/null || echo 80)"
+  [[ -z "${lines}" ]] && lines="$(tput lines 2>/dev/null || echo 24)"
+
+  if (( cols < 80 || lines < 20 )); then
+    # Terminal too small for side-by-side preview; degrade to D1
+    echo "d1"
+    return 0
+  fi
+
+  # (d) Check if fzf supports --preview
+  if fzf --help 2>&1 | grep -q -- '--preview'; then
+    echo "d3"
+    return 0
+  fi
+
+  echo "d1"
+}
+
+# ── Preview Card Renderer ─────────────────────────────────────────────────────
+_render_module_preview_card() {
+  local target="$1" name="$2" desc="$3" hw_warn="$4" wiki="$5" pkgs="$6" aur_pkgs="$7" deps="$8"
+
+  _init_colors
+  local c_cyan="${C_CYAN}"
+  local c_bold="${C_BOLD}"
+  local c_dim="${C_DIM}"
+  local c_yellow="${C_YELLOW}"
+  local c_green="${C_GREEN}"
+  local c_reset="${C_RESET}"
+
+  local title="${name:-${target}}"
+
+  printf '%s╭─────────────────────────────────────────────────────────────╮%s\n' "${c_cyan}" "${c_reset}"
+  printf '%s│%s %s%-59s%s %s│%s\n' "${c_cyan}" "${c_reset}" "${c_bold}" "${title:0:59}" "${c_reset}" "${c_cyan}" "${c_reset}"
+  printf '%s│%s %s[%s]%s%*s %s│%s\n' "${c_cyan}" "${c_reset}" "${c_dim}" "${target}" "${c_reset}" "$(( 57 - ${#target} ))" "" "${c_cyan}" "${c_reset}"
+  printf '%s╰─────────────────────────────────────────────────────────────╯%s\n\n' "${c_cyan}" "${c_reset}"
+
+  if [[ -n "${hw_warn}" ]]; then
+    printf '%s⚠  ADVERTENCIA / HARDWARE:%s\n' "${c_yellow}" "${c_reset}"
+    printf '   %s%s%s\n\n' "${c_bold}" "${hw_warn}" "${c_reset}"
+  fi
+
+  if [[ -n "${desc}" ]]; then
+    printf '%sDESCRIPCIÓN:%s\n' "${c_bold}" "${c_reset}"
+    printf '   %s\n\n' "${desc}"
+  fi
+
+  if [[ -n "${wiki}" ]]; then
+    printf '%sDOCUMENTACIÓN OFICIAL (ArchWiki):%s\n' "${c_bold}" "${c_reset}"
+    local url
+    while IFS= read -r url; do
+      [[ -n "${url}" ]] && printf '   • %s%s%s\n' "${c_cyan}" "${url}" "${c_reset}"
+    done < <(wiki_source_to_urls "${wiki}")
+    echo ""
+  fi
+
+  if [[ -n "${pkgs}" ]]; then
+    printf '%sPAQUETES OFICIALES (Pacman):%s\n' "${c_bold}" "${c_reset}"
+    printf '   %s%s%s\n\n' "${c_green}" "${pkgs}" "${c_reset}"
+  fi
+
+  if [[ -n "${aur_pkgs}" ]]; then
+    printf '%sPAQUETES AUR:%s\n' "${c_bold}" "${c_reset}"
+    printf '   %s%s%s\n\n' "${c_yellow}" "${aur_pkgs}" "${c_reset}"
+  fi
+
+  if [[ -n "${deps}" ]]; then
+    printf '%sDEPENDENCIAS DE MÓDULO:%s\n' "${c_dim}" "${c_reset}"
+    printf '   %s\n\n' "${deps}"
+  fi
+}
+
+preview_module() {
+  local target="$1"
+  local file=""
+  if [[ -f "${target}" ]]; then
+    file="${target}"
+  elif declare -f _find_module_file &>/dev/null; then
+    file="$(_find_module_file "${target}" 2>/dev/null || true)"
+  fi
+  if [[ -z "${file}" || ! -f "${file}" ]]; then
+    file="$(find "${ARCHFORGE_DIR}/modules" -name "${target}.sh" -print -quit 2>/dev/null || true)"
+  fi
+  if [[ -z "${file}" || ! -f "${file}" ]]; then
+    echo "Module not found: ${target}" >&2
+    return 1
+  fi
+
+  local out
+  out="$(bash -c "
+    export ARCHFORGE_DIR='${ARCHFORGE_DIR}'
+    export ARCHFORGE_TEST=true
+    source '${file}'
+    module_info
+    printf 'MODULE_NAME=%q\n'        \"\${MODULE_NAME:-}\"
+    printf 'MODULE_DESC=%q\n'        \"\${MODULE_DESC:-}\"
+    printf 'MODULE_HW_WARN=%q\n'     \"\${MODULE_HW_WARN:-}\"
+    printf 'MODULE_WIKI_SOURCE=%q\n' \"\${MODULE_WIKI_SOURCE:-}\"
+    printf 'MODULE_PACKAGES=%q\n'    \"\${MODULE_PACKAGES:-}\"
+    printf 'MODULE_AUR_PACKAGES=%q\n' \"\${MODULE_AUR_PACKAGES:-}\"
+    printf 'MODULE_DEPENDS=%q\n'     \"\${MODULE_DEPENDS:-}\"
+  " 2>/dev/null)" || return 1
+
+  local MODULE_NAME="" MODULE_DESC="" MODULE_HW_WARN="" MODULE_WIKI_SOURCE=""
+  local MODULE_PACKAGES="" MODULE_AUR_PACKAGES="" MODULE_DEPENDS=""
+  local line
+  while IFS= read -r line; do
+    case "${line}" in
+      MODULE_NAME=*)        eval "MODULE_NAME=${line#MODULE_NAME=}"               ;;
+      MODULE_DESC=*)        eval "MODULE_DESC=${line#MODULE_DESC=}"               ;;
+      MODULE_HW_WARN=*)     eval "MODULE_HW_WARN=${line#MODULE_HW_WARN=}"         ;;
+      MODULE_WIKI_SOURCE=*) eval "MODULE_WIKI_SOURCE=${line#MODULE_WIKI_SOURCE=}" ;;
+      MODULE_PACKAGES=*)    eval "MODULE_PACKAGES=${line#MODULE_PACKAGES=}"       ;;
+      MODULE_AUR_PACKAGES=*) eval "MODULE_AUR_PACKAGES=${line#MODULE_AUR_PACKAGES=}" ;;
+      MODULE_DEPENDS=*)     eval "MODULE_DEPENDS=${line#MODULE_DEPENDS=}"         ;;
+    esac
+  done <<< "${out}"
+
+  _render_module_preview_card "${target}" "${MODULE_NAME}" "${MODULE_DESC}" "${MODULE_HW_WARN}" "${MODULE_WIKI_SOURCE}" "${MODULE_PACKAGES}" "${MODULE_AUR_PACKAGES}" "${MODULE_DEPENDS}"
+}
+
+# ── D1 Native Bash Selector ───────────────────────────────────────────────────
+_show_menu_d1() {
   # shellcheck disable=SC2178
-  local -n _module_list=$1
+  local -n _m_list=$1
   SELECTED_MODULES=()
 
   _print_banner
 
-  if [[ ${#_module_list[@]} -eq 0 ]]; then
-    log_warn "No modules available to select."
-    return 0
-  fi
-
   declare -A _MODULE_BY_NUMBER=()
   local -a _ALL_MODULE_IDS=()
-  # Copy via _module_list: nameref to main's menu_entries works here, but
-  # `local -n __list=menu_entries` inside _build often sees only one element (dynamic scope).
   local -a _menu_for_table=()
-  _menu_for_table=("${_module_list[@]}")
+  _menu_for_table=("${_m_list[@]}")
   _build_and_print_module_table _menu_for_table _MODULE_BY_NUMBER _ALL_MODULE_IDS
 
   declare -A _MODULE_BY_NAME=()
@@ -304,7 +500,7 @@ show_menu() {
   local input
   read -r input
 
-  [[ -z "${input}" || "${input}" == "q" ]] && return 0
+  [[ -z "${input}" || "${input}" == "q" || "${input}" == "Q" ]] && return 0
 
   if [[ "${input}" == "all" ]]; then
     SELECTED_MODULES=("${_ALL_MODULE_IDS[@]}")
@@ -318,7 +514,19 @@ show_menu() {
 
   local tok resolved
   for tok in "${_tokens[@]}"; do
-    if [[ "${tok}" =~ ^[0-9]+$ ]]; then
+    if [[ "${tok}" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+      local start="${BASH_REMATCH[1]}"
+      local end="${BASH_REMATCH[2]}"
+      local i
+      if (( start <= end )); then
+        for (( i=start; i<=end; i++ )); do
+          if (( i >= 1 && i <= total )); then
+            resolved="${_MODULE_BY_NUMBER[${i}]}"
+            [[ -n "${resolved}" ]] && _raw_selected+=("${resolved}")
+          fi
+        done
+      fi
+    elif [[ "${tok}" =~ ^[0-9]+$ ]]; then
       if (( tok >= 1 && tok <= total )); then
         resolved="${_MODULE_BY_NUMBER[${tok}]}"
         [[ -n "${resolved}" ]] && _raw_selected+=("${resolved}")
@@ -334,8 +542,94 @@ show_menu() {
 
   if [[ ${#_raw_selected[@]} -gt 0 ]]; then
     local -a _reordered=()
-    # shellcheck disable=SC2312
     mapfile -t _reordered < <(_sort_by_execution_order "${_raw_selected[@]}")
     SELECTED_MODULES=("${_reordered[@]}")
   fi
+}
+
+# ── D3 FZF Fuzzy Multi-Selector with Preview ──────────────────────────────────
+_show_menu_d3() {
+  # shellcheck disable=SC2178
+  local -n _m_list=$1
+  SELECTED_MODULES=()
+
+  local -a fzf_items=()
+  local entry _eid _ecat _eshort _edesc _ehw
+  local warn_str item_line
+
+  for entry in "${_m_list[@]}"; do
+    _parse_entry "${entry}" _eid _ecat _eshort _edesc _ehw
+    if [[ -n "${_ehw}" ]]; then
+      warn_str="⚠"
+    else
+      warn_str=" "
+    fi
+    printf -v item_line '%-14s %s  %s' "${_eid}" "${warn_str}" "${_eshort}"
+    fzf_items+=("${item_line}")
+  done
+
+  local preview_bin="${ARCHFORGE_DIR}/archforge"
+  [[ ! -x "${preview_bin}" ]] && preview_bin="archforge"
+
+  local color_flag="--ansi"
+  if [[ -n "${NO_COLOR:-}" || "${TERM:-}" == "dumb" ]]; then
+    color_flag="--no-color"
+  fi
+
+  local fzf_out
+  fzf_out="$(printf '%s\n' "${fzf_items[@]}" | fzf \
+    --multi \
+    ${color_flag} \
+    --reverse \
+    --prompt="archforge > " \
+    --header="[TAB]: Select/Deselect | [ENTER]: Apply | [ESC]: Cancel" \
+    --pointer="❯" \
+    --marker="✓ " \
+    --preview="${preview_bin} --preview-module {1}" \
+    --preview-window="right:52%:wrap" \
+    2>/dev/null || true)"
+  local ret=$?
+
+  if [[ -z "${fzf_out}" || "${ret}" -eq 130 ]]; then
+    SELECTED_MODULES=()
+    return 0
+  fi
+
+  local -a raw_selected=()
+  local sel_line sel_id
+  while IFS= read -r sel_line; do
+    [[ -z "${sel_line}" ]] && continue
+    sel_id="${sel_line%% *}"
+    [[ -n "${sel_id}" ]] && raw_selected+=("${sel_id}")
+  done <<< "${fzf_out}"
+
+  if [[ ${#raw_selected[@]} -gt 0 ]]; then
+    local -a _reordered=()
+    mapfile -t _reordered < <(_sort_by_execution_order "${raw_selected[@]}")
+    SELECTED_MODULES=("${_reordered[@]}")
+  fi
+}
+
+# ── Public Entry Point ────────────────────────────────────────────────────────
+show_menu() {
+  # shellcheck disable=SC2178
+  local -n _module_list=$1
+  SELECTED_MODULES=()
+
+  if [[ ${#_module_list[@]} -eq 0 ]]; then
+    log_warn "No modules available to select."
+    return 0
+  fi
+
+  local engine
+  engine="$(_detect_tui_engine)"
+
+  case "${engine}" in
+    d3)
+      _show_menu_d3 _module_list
+      ;;
+    d1|*)
+      _show_menu_d1 _module_list
+      ;;
+  esac
 }
