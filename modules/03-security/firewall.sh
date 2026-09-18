@@ -25,6 +25,7 @@ module_info() {
 }
 
 module_run() {
+  set +T 2>/dev/null || true
   pacman_install nftables
 
   local profile
@@ -48,6 +49,23 @@ module_run() {
     log_error "Config template not found: ${config_src}"
     return 1
   fi
+
+  # Validate nftables syntax before writing to system
+  if ! validate_nftables "${config_src}"; then
+    log_error "Aborting firewall activation — nftables syntax check failed for ${config_src}"
+    return 1
+  fi
+
+  # Check for conflicting firewall daemons (ArchWiki Simple stateful firewall)
+  local conflict
+  for conflict in ufw firewalld iptables; do
+    if systemctl is-active --quiet "${conflict}.service" 2>/dev/null; then
+      log_warn "Conflicting firewall active: ${conflict}.service"
+      if confirm "Disable conflicting ${conflict}.service?" "y"; then
+        run_cmd sudo systemctl disable --now "${conflict}.service"
+      fi
+    fi
+  done
 
   run_cmd sudo cp "${config_src}" /etc/nftables.conf
   run_cmd sudo systemctl enable --now nftables

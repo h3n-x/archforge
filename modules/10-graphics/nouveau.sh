@@ -18,7 +18,7 @@ module_info() {
   MODULE_DESC="Configure nouveau open-source NVIDIA driver, remove proprietary driver if present"
   MODULE_REQUIRES_ROOT=true
   MODULE_HW_WARN="NVIDIA GPU required"
-  MODULE_PACKAGES="mesa xf86-video-nouveau"
+  MODULE_PACKAGES="mesa"
   MODULE_AUR_PACKAGES=""
   MODULE_WIKI_SOURCE="aur-wiki-nouveau.txt"
   MODULE_DEPENDS=""
@@ -26,6 +26,7 @@ module_info() {
 
 module_run() {
   module_info
+  set +T 2>/dev/null || true
 
   # ── 1. GPU check ─────────────────────────────────────────────────────────────
   if [[ "${DETECTED_GPU:-}" != *"NVIDIA"* ]] && [[ "${DETECTED_GPU:-}" != *"nvidia"* ]]; then
@@ -59,8 +60,11 @@ module_run() {
     fi
   fi
 
-  # ── 4. Install mesa and xf86-video-nouveau ────────────────────────────────────
-  pacman_install mesa xf86-video-nouveau
+  # ── 4. Install mesa (ArchWiki: Nouveau) ──────────────────────────────────────
+  # ArchWiki: https://wiki.archlinux.org/title/Nouveau
+  # For 3D acceleration, install the mesa package. The modesetting driver is
+  # used by default for 2D acceleration in Xorg and native KMS in Wayland.
+  pacman_install mesa
 
   # ── 5. Check for nouveau blacklist ───────────────────────────────────────────
   local blacklist_found=""
@@ -91,7 +95,7 @@ module_run() {
     local current_modules=""
     current_modules="$(grep '^MODULES=' /etc/mkinitcpio.conf 2>/dev/null || true)"
 
-    if echo "${current_modules}" | grep -q '\bnouuveau\b\|nouveau'; then
+    if echo "${current_modules}" | grep -q '\bnouveau\b'; then
       log_info "nouveau is already present in mkinitcpio MODULES."
     else
       local tmp_mkini

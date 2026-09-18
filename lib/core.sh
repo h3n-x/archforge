@@ -207,6 +207,7 @@ wiki_source_to_urls() {
       aur-wiki-linux-console-keyboard-configuration.txt) url="https://wiki.archlinux.org/title/Linux_console/Keyboard_configuration" ;;
       aur-wiki-Linux-console.txt)                        url="https://wiki.archlinux.org/title/Linux_console" ;;
       aur-wiki-lm-sensors.txt)                           url="https://wiki.archlinux.org/title/Lm_sensors" ;;
+      aur-wiki-makepkg.txt)                              url="https://wiki.archlinux.org/title/Makepkg" ;;
       aur-wiki-metric-compatible-fonts.txt)              url="https://wiki.archlinux.org/title/Metric-compatible_fonts" ;;
       aur-wiki-mirrors.txt)                              url="https://wiki.archlinux.org/title/Mirrors" ;;
       aur-wiki-mouse-buttons.txt)                        url="https://wiki.archlinux.org/title/Mouse_buttons" ;;

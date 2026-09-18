@@ -25,6 +25,7 @@ module_info() {
 }
 
 module_run() {
+  set +T 2>/dev/null || true
   module_info
 
   local pkgs_log="/tmp/archforge-pkgs-$$.log"
@@ -69,7 +70,9 @@ module_run() {
     cp /etc/pacman.conf "${tmp2}"
     sed -i '/^#\[multilib\]/,/^#Include/ s/^#//' "${tmp2}"
     run_cmd sudo cp "${tmp2}" /etc/pacman.conf
-    run_cmd sudo pacman -Sy
+    # Source: https://wiki.archlinux.org/title/System_maintenance#Partial_upgrades_are_unsupported
+    # Never run pacman -Sy without -u as partial upgrades break system libraries.
+    run_cmd sudo pacman -Syu
   fi
 
   pacman_install reflector pacman-contrib
@@ -101,9 +104,11 @@ _configure_reflector() {
   log_info "Enter comma-separated country names for mirror selection."
   log_info "Examples: France,Germany  /  United States  /  Spain,Portugal"
 
-  local countries
-  read -r -p "Countries [France,Germany,Spain]: " countries
-  countries="${countries:-France,Germany,Spain}"
+  local countries="France,Germany,Spain"
+  if [[ "${YES_FLAG:-false}" != "true" ]] && [[ "${DRY_RUN:-false}" != "true" ]] && [[ "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    read -r -p "Countries [France,Germany,Spain]: " countries || true
+    countries="${countries:-France,Germany,Spain}"
+  fi
 
   backup_file "${reflector_conf}"
   local tmp_ref

@@ -43,7 +43,6 @@ _add_noatime_to_fstab() {
       } else {
         i = index($0, $4)
         $0 = substr($0, 1, i + length($4) - 1) ",noatime" substr($0, i + length($4))
-        next
       }
     }
     { print }
@@ -89,6 +88,7 @@ _verify_trim_support() {
 }
 
 module_run() {
+  set +T 2>/dev/null || true
   module_info
 
   local root_dev rotational root_source
@@ -142,6 +142,10 @@ module_run() {
     tmp="$(mktemp)"
     cp /etc/fstab "${tmp}"
     _add_noatime_to_fstab "${tmp}"
+    if ! validate_fstab "${tmp}"; then
+      log_error "Aborting fstab modification — syntax validation failed."
+      return 1
+    fi
     echo ""
     diff /etc/fstab "${tmp}" || true
     echo ""
@@ -189,8 +193,10 @@ _configure_trim() {
   #  would produce frequent system freezes."
   log_warn "Continuous TRIM requires SATA 3.1+ or NVMe. Older SATA SSDs may freeze with 'discard'."
 
-  local choice
-  read -r -p "Choice [1]: " choice
+  local choice=1
+  if [[ "${YES_FLAG:-false}" != "true" ]] && [[ "${DRY_RUN:-false}" != "true" ]] && [[ "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    read -r -p "Choice [1]: " choice || true
+  fi
 
   case "${choice:-1}" in
     1)
@@ -266,11 +272,15 @@ _configure_continuous_trim() {
       } else {
         i = index($0, $4)
         $0 = substr($0, 1, i + length($4) - 1) ",discard" substr($0, i + length($4))
-        next
       }
     }
     { print }
   ' "${tmp_fstab}" > "${tmp_fstab}.tmp" && mv "${tmp_fstab}.tmp" "${tmp_fstab}"
+
+  if ! validate_fstab "${tmp_fstab}"; then
+    log_error "Aborting continuous TRIM fstab modification — syntax validation failed."
+    return 1
+  fi
 
   echo ""
   diff /etc/fstab "${tmp_fstab}" || true

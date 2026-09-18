@@ -22,6 +22,7 @@ module_info() {
 }
 
 module_run() {
+  set +T 2>/dev/null || true
   module_info
 
   # ── Journal: persistent storage + size limit ──────────────────────────────
@@ -99,7 +100,7 @@ _configure_journal() {
   local dropin_dir="/etc/systemd/journald.conf.d"
   local dropin="${dropin_dir}/archforge.conf"
 
-  if [[ -f "${dropin}" ]]; then
+  if [[ "${ARCHFORGE_TEST:-false}" != "true" && -f "${dropin}" ]]; then
     log_skip "${dropin} already exists."
     return 0
   fi
@@ -107,9 +108,11 @@ _configure_journal() {
   log_info "Journal storage: 'persistent' writes to /var/log/journal/ (survives reboots)."
   log_info "Without a size limit the journal can grow to 10% of the filesystem (up to 4 GiB)."
 
-  local max_use
-  read -r -p "Maximum journal size [500M]: " max_use
-  max_use="${max_use:-500M}"
+  local max_use="500M"
+  if [[ "${YES_FLAG:-false}" != "true" ]] && [[ "${DRY_RUN:-false}" != "true" ]] && [[ "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    read -r -p "Maximum journal size [500M]: " max_use || true
+    max_use="${max_use:-500M}"
+  fi
 
   # Validate: accept values like 100M, 2G, 500M
   if [[ ! "${max_use}" =~ ^[0-9]+(M|G|K|T)$ ]]; then

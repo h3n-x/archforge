@@ -66,6 +66,7 @@ module_info() {
 
 module_run() {
   module_info
+  set +T 2>/dev/null || true
 
   local current_hostname
   current_hostname="$(hostnamectl hostname 2>/dev/null || hostnamectl --static 2>/dev/null || hostname)"
@@ -75,8 +76,10 @@ module_run() {
     log_warn "Current hostname '${current_hostname}' appears invalid — a new hostname is recommended"
   fi
 
-  local new_hostname
-  read -r -p "New hostname (blank to keep '${current_hostname}'): " new_hostname
+  local new_hostname=""
+  if [[ "${YES_FLAG:-false}" != "true" && "${DRY_RUN:-false}" != "true" && "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    read -r -p "New hostname (blank to keep '${current_hostname}'): " new_hostname
+  fi
   if [[ -n "${new_hostname}" && "${new_hostname}" != "${current_hostname}" ]]; then
     run_cmd sudo hostnamectl set-hostname "${new_hostname}"
     current_hostname="${new_hostname}"
@@ -177,21 +180,23 @@ _configure_regulatory_domain() {
   pacman_install wireless-regdb
 
   if [[ ! -f "${regdom_conf}" ]]; then
-    log_warn "${regdom_conf} not found — wireless-regdb may not be installed correctly."
-    return 1
+    run_cmd sudo mkdir -p /etc/conf.d
+    run_cmd sudo touch "${regdom_conf}"
   fi
 
   log_info "Enter your ISO 3166-1 alpha-2 country code (e.g. US, ES, DE, FR, GB, JP, CN)."
   log_info "See: https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2"
-  local country_code
-  while true; do
-    read -r -p "Country code: " country_code
-    country_code="${country_code^^}"  # uppercase
-    if [[ "${country_code}" =~ ^[A-Z]{2}$ ]]; then
-      break
-    fi
-    log_warn "Invalid country code '${country_code}' — must be exactly 2 letters (e.g. US, DE)."
-  done
+  local country_code="US"
+  if [[ "${YES_FLAG:-false}" != "true" && "${DRY_RUN:-false}" != "true" && "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    while true; do
+      read -r -p "Country code: " country_code
+      country_code="${country_code^^}"  # uppercase
+      if [[ "${country_code}" =~ ^[A-Z]{2}$ ]]; then
+        break
+      fi
+      log_warn "Invalid country code '${country_code}' — must be exactly 2 letters (e.g. US, DE)."
+    done
+  fi
 
   backup_file "${regdom_conf}"
 
@@ -262,8 +267,10 @@ _configure_mac_randomization() {
   echo "  [2] random                 — new random MAC on every connection (maximum privacy)"
   echo ""
 
-  local mode_choice wifi_mode eth_mode
-  read -r -p "Mode [1]: " mode_choice
+  local mode_choice="1" wifi_mode="stable" eth_mode="random"
+  if [[ "${YES_FLAG:-false}" != "true" && "${DRY_RUN:-false}" != "true" && "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    read -r -p "Mode [1]: " mode_choice
+  fi
   case "${mode_choice:-1}" in
     2)
       wifi_mode="random"

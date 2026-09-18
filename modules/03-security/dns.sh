@@ -22,6 +22,7 @@ module_info() {
 }
 
 module_run() {
+  set +T 2>/dev/null || true
   module_info
 
   local provider
@@ -191,6 +192,9 @@ _configure_resolved_only() {
   backup_file "/etc/resolv.conf"
   _clear_immutable_if_set "/etc/resolv.conf"
   run_cmd sudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+  # Source: https://wiki.archlinux.org/title/Systemd-resolved
+  # Must enable the service so DNS resolution persists after reboot
+  run_cmd sudo systemctl enable --now systemd-resolved
   run_cmd sudo systemctl restart systemd-resolved
 }
 
@@ -210,6 +214,8 @@ _configure_resolved_with_nm() {
   backup_file "/etc/resolv.conf"
   _clear_immutable_if_set "/etc/resolv.conf"
   run_cmd sudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+  # Source: https://wiki.archlinux.org/title/Systemd-resolved
+  run_cmd sudo systemctl enable --now systemd-resolved
   run_cmd sudo systemctl restart systemd-resolved
   run_cmd sudo systemctl restart NetworkManager
 }

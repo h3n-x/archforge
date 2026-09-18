@@ -25,6 +25,7 @@ module_info() {
 }
 
 module_run() {
+  set +T 2>/dev/null || true
   module_info
 
   local tmp_sysctl="" tmp_udev="" tmp_zram=""
@@ -62,8 +63,10 @@ EOF
   echo "  [1] schedutil [★ recomendado] — kernel-managed, balances performance and power"
   echo "  [2] powersave                 — always use lowest frequency, maximum battery"
   echo "  [3] performance               — always use highest frequency ⚠ higher CPU temperature and power draw"
-  local gov_choice gov
-  read -r -p "Choice [1]: " gov_choice
+  local gov_choice=1 gov
+  if [[ "${YES_FLAG:-false}" != "true" ]] && [[ "${DRY_RUN:-false}" != "true" ]] && [[ "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    read -r -p "Choice [1]: " gov_choice || true
+  fi
   case "${gov_choice:-1}" in
     2) gov="powersave"   ;;
     3) gov="performance" ;;
@@ -266,14 +269,16 @@ _configure_oom_killer() {
   # systemd-oomd: part of systemd, kills cgroups under memory pressure.
   echo ""
   echo "OOM (Out of Memory) killer configuration:"
-  echo "  [1] earlyoom [★ recomendado] — kills processes before the system freezes (AUR)"
+  echo "  [1] earlyoom [★ recomendado] — kills processes before the system freezes (official repo)"
   echo "  [2] systemd-oomd             — built-in systemd OOM daemon, no extra packages"
   echo "  [3] Skip"
   echo ""
   log_info "Without an OOM killer, a system running out of memory can freeze for minutes."
 
-  local oom_choice
-  read -r -p "Choice [1]: " oom_choice
+  local oom_choice=1
+  if [[ "${YES_FLAG:-false}" != "true" ]] && [[ "${DRY_RUN:-false}" != "true" ]] && [[ "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    read -r -p "Choice [1]: " oom_choice || true
+  fi
 
   case "${oom_choice:-1}" in
     1) _install_earlyoom    ;;
@@ -284,7 +289,9 @@ _configure_oom_killer() {
 }
 
 _install_earlyoom() {
-  aur_install earlyoom
+  # Source: https://wiki.archlinux.org/title/Improving_performance#Earlyoom
+  # earlyoom is in the official [extra] repository.
+  pacman_install earlyoom
   run_cmd sudo systemctl enable --now earlyoom.service
   log_ok "earlyoom installed and enabled."
   log_info "earlyoom will kill the largest memory consumers before the kernel OOM killer acts."

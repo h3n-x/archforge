@@ -28,6 +28,7 @@ module_info() {
 
 module_run() {
   module_info
+  set +T 2>/dev/null || true
 
   # ── Step 1: Check multilib ─────────────────────────────────────────────────
   # Steam requires 32-bit libraries from the multilib repository.
@@ -37,7 +38,7 @@ module_run() {
     log_info "To enable multilib, edit /etc/pacman.conf and uncomment:"
     log_info "  [multilib]"
     log_info "  Include = /etc/pacman.d/mirrorlist"
-    log_info "Then run: sudo pacman -Sy"
+    log_info "Then run: sudo pacman -Syu"
     return 1
   fi
   log_info "multilib repository is enabled."
@@ -89,11 +90,14 @@ _configure_fd_limit() {
   # esync requirement — kernel default (1024) is too low for modern games.
   # Proton/Wine esync opens thousands of file descriptors simultaneously;
   # without raising this limit many games fail to launch or crash at startup.
+  # Source: https://wiki.archlinux.org/title/Limits.conf
   log_info "Many modern games (Proton/Wine) require high file descriptor limits — kernel default is 1024"
 
   local current_hard
   current_hard="$(ulimit -Hn 2>/dev/null || echo "unknown")"
   log_info "Current hard file descriptor limit: ${current_hard}"
+
+  local dropin="/etc/security/limits.d/10-esync.conf"
 
   # Check if already configured in limits.conf or any limits.d drop-in
   if grep -rqsE 'nofile[[:space:]]+524288' /etc/security/limits.conf /etc/security/limits.d/ 2>/dev/null; then
@@ -102,20 +106,20 @@ _configure_fd_limit() {
   fi
 
   if confirm "Set file descriptor limit to 524288 for all users (required by esync)?" "y"; then
-    backup_file "/etc/security/limits.conf"
+    backup_file "${dropin}"
     local tmp
     tmp="$(mktemp)"
     # shellcheck disable=SC2064
     trap "rm -f '${tmp}'" RETURN
-    cp /etc/security/limits.conf "${tmp}"
-    cat >> "${tmp}" <<'EOF'
-
+    cat > "${tmp}" <<'EOF'
 # esync requirement — kernel default (1024) is too low for modern games
+# ArchWiki: https://wiki.archlinux.org/title/Limits.conf
 * hard nofile 524288
 * soft nofile 524288
 EOF
-    run_cmd sudo cp "${tmp}" /etc/security/limits.conf
-    log_ok "File descriptor limit set to 524288."
+    run_cmd sudo mkdir -p /etc/security/limits.d
+    run_cmd sudo install -Dm644 "${tmp}" "${dropin}"
+    log_ok "File descriptor limit drop-in created (${dropin})."
     log_info "Changes take effect on next login session."
   fi
 }

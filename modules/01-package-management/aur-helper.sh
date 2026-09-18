@@ -129,51 +129,43 @@ _optimize_makepkg() {
   fi
 
   # ── Disable debug packages and LTO ───────────────────────────────────────
-  # Source: aur-wiki-makepkg.txt — "Disable debug packages and LTO" (lines 220-226):
-  # "Building debug packages... slows down the build process."
-  # "Link-time optimization produces more optimized binaries but greatly
-  #  lengthens the build process."
-  if [[ -f "${makepkg_conf}" ]]; then
-    local has_debug has_lto
-    has_debug="$(grep -c '\bdebug\b' "${makepkg_conf}" 2>/dev/null || echo 0)"
-    has_lto="$(grep -c '\blto\b' "${makepkg_conf}" 2>/dev/null || echo 0)"
-
-    if (( has_debug > 0 || has_lto > 0 )); then
-      log_info "Disabling debug packages (!debug) and LTO (!lto) speeds up AUR builds significantly."
-      log_info "These options are enabled by default since pacman 6.0.2-9 (February 2024)."
-      if confirm "Disable debug packages and LTO in /etc/makepkg.conf?" "y"; then
-        backup_file "${makepkg_conf}"
-        # Add !debug and !lto if not already present — sed only modifies OPTIONS array
-        run_cmd sudo sed -i \
-          's/OPTIONS=(\(.*\)\bdebug\b/OPTIONS=(\1!debug/g;
-           s/OPTIONS=(\(.*\)\blto\b/OPTIONS=(\1!lto/g' \
-          "${makepkg_conf}"
-        log_ok "!debug and !lto set in OPTIONS."
-      fi
+  # Source: https://wiki.archlinux.org/title/Makepkg#Improving_compile_times
+  # Disable debug packages (!debug) and LTO (!lto) via makepkg drop-in without mutating /etc/makepkg.conf
+  log_info "Disabling debug packages (!debug) and LTO (!lto) speeds up AUR builds significantly."
+  if confirm "Disable debug packages and LTO for makepkg?" "y"; then
+    backup_file "${dropin}"
+    local tmp_opt
+    tmp_opt="$(mktemp)"
+    # shellcheck disable=SC2064
+    trap "rm -f '${tmp_opt}'" RETURN
+    if [[ -f "${dropin}" ]]; then
+      cp "${dropin}" "${tmp_opt}"
     fi
+    if ! grep -q '!debug' "${tmp_opt}" 2>/dev/null; then
+      printf '\n# Disable debug and LTO to speed up compilation (ArchWiki: Makepkg)\nOPTIONS+=(!debug !lto)\n' >> "${tmp_opt}"
+    fi
+    run_cmd sudo cp "${tmp_opt}" "${dropin}"
+    log_ok "!debug and !lto added to ${dropin}."
   fi
 
   # ── ccache ────────────────────────────────────────────────────────────────
-  # Source: aur-wiki-makepkg.txt — "Using a compilation cache" (line 195):
-  # "The use of ccache can improve build times by caching the results of
-  #  compilations for successive use."
-  if confirm "Install ccache (speeds up recompilation of unchanged AUR packages)?" "y"; then
+  # Source: https://wiki.archlinux.org/title/Makepkg#Using_a_compilation_cache
+  if confirm "Install and enable ccache in makepkg drop-in?" "y"; then
     pacman_install ccache
 
-    if [[ -f "${makepkg_conf}" ]]; then
-      # Enable ccache in BUILDENV array: change !ccache → ccache
-      if grep -q '!ccache' "${makepkg_conf}" 2>/dev/null; then
-        backup_file "${makepkg_conf}"
-        run_cmd sudo sed -i 's/!ccache/ccache/g' "${makepkg_conf}"
-        log_ok "ccache enabled in /etc/makepkg.conf BUILDENV."
-      elif ! grep -q '\bccache\b' "${makepkg_conf}" 2>/dev/null; then
-        log_warn "Could not find '!ccache' in /etc/makepkg.conf — enable ccache manually."
-        log_warn "In /etc/makepkg.conf, add 'ccache' to the BUILDENV array."
-      else
-        log_skip "ccache already enabled in /etc/makepkg.conf."
-      fi
+    backup_file "${dropin}"
+    local tmp_cc
+    tmp_cc="$(mktemp)"
+    # shellcheck disable=SC2064
+    trap "rm -f '${tmp_cc}'" RETURN
+    if [[ -f "${dropin}" ]]; then
+      cp "${dropin}" "${tmp_cc}"
     fi
-
+    if ! grep -q 'BUILDENV+=.*ccache' "${tmp_cc}" 2>/dev/null; then
+      printf '\n# Enable ccache for builds (ArchWiki: Makepkg)\nBUILDENV+=(ccache)\n' >> "${tmp_cc}"
+    fi
+    run_cmd sudo cp "${tmp_cc}" "${dropin}"
+    log_ok "ccache enabled in ${dropin}."
     log_info "ccache stores compilation results in ~/.cache/ccache by default."
     log_info "View cache stats with: ccache -s"
   fi

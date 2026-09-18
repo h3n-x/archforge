@@ -25,6 +25,7 @@ module_info() {
 }
 
 module_run() {
+  set +T 2>/dev/null || true
   module_info
 
   if [[ "${SYSTEM_TYPE:-desktop}" == "desktop" ]]; then
@@ -34,6 +35,17 @@ module_run() {
 
   # ── Install TLP ────────────────────────────────────────────────────────────
   pacman_install tlp
+
+  # ── Conflict check: power-profiles-daemon ─────────────────────────────────
+  # Source: https://wiki.archlinux.org/title/TLP#Conflicts
+  # "power-profiles-daemon conflicts with TLP... must be masked."
+  if systemctl is-active --quiet power-profiles-daemon.service 2>/dev/null || systemctl is-enabled --quiet power-profiles-daemon.service 2>/dev/null; then
+    log_warn "power-profiles-daemon conflicts with TLP."
+    if confirm "Mask conflicting power-profiles-daemon.service?" "y"; then
+      run_cmd sudo systemctl mask --now power-profiles-daemon.service
+      log_ok "power-profiles-daemon masked."
+    fi
+  fi
 
   # Source: aur-wiki-tlp.txt — Radio Device Wizard:
   # "When using tlp-rdw it is required to use NetworkManager and enabling
@@ -134,24 +146,26 @@ _configure_battery_thresholds() {
   fi
 
   # Interactive threshold input with validation
-  local start_thresh stop_thresh
-  while true; do
-    read -r -p "START charge threshold (% — charge starts above this, recommended 40): " start_thresh
-    start_thresh="${start_thresh:-40}"
-    if [[ "${start_thresh}" =~ ^[0-9]+$ ]] && (( start_thresh >= 0 && start_thresh <= 99 )); then
-      break
-    fi
-    log_warn "Invalid value '${start_thresh}' — must be 0-99."
-  done
+  local start_thresh=40 stop_thresh=80
+  if [[ "${YES_FLAG:-false}" != "true" ]] && [[ "${DRY_RUN:-false}" != "true" ]] && [[ "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    while true; do
+      read -r -p "START charge threshold (% — charge starts above this, recommended 40): " start_thresh || true
+      start_thresh="${start_thresh:-40}"
+      if [[ "${start_thresh}" =~ ^[0-9]+$ ]] && (( start_thresh >= 0 && start_thresh <= 99 )); then
+        break
+      fi
+      log_warn "Invalid value '${start_thresh}' — must be 0-99."
+    done
 
-  while true; do
-    read -r -p "STOP charge threshold  (% — charge stops here, recommended 80): " stop_thresh
-    stop_thresh="${stop_thresh:-80}"
-    if [[ "${stop_thresh}" =~ ^[0-9]+$ ]] && (( stop_thresh > start_thresh && stop_thresh <= 100 )); then
-      break
-    fi
-    log_warn "Invalid value '${stop_thresh}' — must be ${start_thresh}–100 and greater than START."
-  done
+    while true; do
+      read -r -p "STOP charge threshold  (% — charge stops here, recommended 80): " stop_thresh || true
+      stop_thresh="${stop_thresh:-80}"
+      if [[ "${stop_thresh}" =~ ^[0-9]+$ ]] && (( stop_thresh > start_thresh && stop_thresh <= 100 )); then
+        break
+      fi
+      log_warn "Invalid value '${stop_thresh}' — must be ${start_thresh}–100 and greater than START."
+    done
+  fi
 
   log_info "Thresholds: START=${start_thresh}%  STOP=${stop_thresh}%"
   log_info "Battery will charge from ${start_thresh}% up to ${stop_thresh}% only."
@@ -203,8 +217,10 @@ _configure_usb_denylist() {
 
   log_info "Enter USB device IDs to exclude from autosuspend."
   log_info "Example: 8087:0aaa for Intel Bluetooth (space-separated for multiple)."
-  local denylist_ids
-  read -r -p "USB denylist IDs (blank to skip): " denylist_ids
+  local denylist_ids=""
+  if [[ "${YES_FLAG:-false}" != "true" ]] && [[ "${DRY_RUN:-false}" != "true" ]] && [[ "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    read -r -p "USB denylist IDs (blank to skip): " denylist_ids || true
+  fi
 
   if [[ -z "${denylist_ids}" ]]; then
     log_skip "No USB IDs entered — skipping denylist configuration."

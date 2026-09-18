@@ -26,6 +26,7 @@ module_info() {
 }
 
 module_run() {
+  set +T 2>/dev/null || true
   module_info
 
   # Source: aur-wiki-clamav.txt — "Installation":
@@ -199,9 +200,13 @@ Persistent=true
 WantedBy=timers.target
 CLAMAV_TIMER_EOF
 
+  backup_file "${service_file}"
+  backup_file "${timer_file}"
+
   run_cmd sudo cp "${tmp_svc}"   "${service_file}"
   run_cmd sudo cp "${tmp_timer}" "${timer_file}"
   run_cmd sudo chmod 644 "${service_file}" "${timer_file}"
+  run_cmd sudo systemctl daemon-reload
   run_cmd sudo systemctl enable --now clamav-home-scan.timer
   log_ok "Weekly ClamAV home scan timer enabled."
   log_info "View scan results: cat /var/log/clamav/home-scan.log"

@@ -9,7 +9,7 @@ source "${ARCHFORGE_DIR}/lib/core.sh"
 
 module_info() {
   MODULE_NAME="System: Users and Groups"
-  MODULE_DESC="Add users to common system groups (wheel, audio, video, storage, etc.)"
+  MODULE_DESC="Add users to common system groups (wheel, docker, libvirt, etc.)"
   MODULE_REQUIRES_ROOT=true
   MODULE_HW_WARN=""
   MODULE_PACKAGES=""
@@ -19,6 +19,7 @@ module_info() {
 }
 
 module_run() {
+  set +T 2>/dev/null || true
   module_info
 
   # ── Determine target user ──────────────────────────────────────────────────
@@ -42,20 +43,23 @@ module_run() {
   current_membership="$(id -Gn "${target_user}" 2>/dev/null || echo 'unknown')"
   log_info "Current groups for ${target_user}: ${current_membership}"
 
+  # ArchWiki Warning: Pre-systemd groups (audio, video, storage, etc.)
+  # Source: https://wiki.archlinux.org/title/Users_and_groups#Pre-systemd_groups
+  # "Avoid adding users to pre-systemd groups such as audio, video, storage...
+  #  systemd-logind dynamically assigns ACLs to the local session. Adding users to
+  #  audio/video breaks fast user switching, breaks PipeWire device reservation,
+  #  and allows background processes of logged-out users to access webcams and sound cards."
+  log_info "Adhering to ArchWiki policy: pre-systemd groups (audio, video, storage, optical, scanner) are omitted."
+
   # ── Group definitions: "groupname|confirm prompt" ─────────────────────────
   local -a group_entries=(
     "wheel|Add to wheel (sudo/su access)?"
-    "audio|Add to audio (direct sound device access)?"
-    "video|Add to video (GPU/framebuffer access)?"
-    "storage|Add to storage (removable storage devices)?"
-    "optical|Add to optical (CD/DVD drives)?"
-    "scanner|Add to scanner (scanner access)?"
-    "games|Add to games (game save file sharing)?"
     "lp|Add to lp (printer access/CUPS)?"
     "docker|__DOCKER__"
     "libvirt|Add to libvirt (manage VMs without sudo)?"
     "wireshark|Add to wireshark (capture packets without root)?"
     "realtime|Add to realtime (real-time audio, e.g. JACK)?"
+    "uucp|Add to uucp (serial/modem device access)?"
   )
 
   local entry grp prompt current_groups
