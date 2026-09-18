@@ -107,6 +107,36 @@ run_cmd() {
   "$@"
 }
 
+# ── run_cmd_secret ────────────────────────────────────────────────────────────
+# Execution wrapper for commands containing sensitive arguments (passwords, tokens).
+# Executes command without recording sensitive arguments or output to LOG_FILE.
+run_cmd_secret() {
+  local label="$1"
+  shift
+  if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    log_dry "[SECRET: ${label}]"
+    return 0
+  fi
+  if [[ "${ARCHFORGE_TEST:-false}" == "true" ]]; then
+    echo "[SECRET: ${label}] $*" >> "${MOCK_LOG_FILE:-/tmp/archforge-mock-$$.log}"
+    return 0
+  fi
+  if [[ -n "${LOG_FILE:-}" ]]; then
+    if [[ ! -e "${LOG_FILE}" ]]; then
+      touch "${LOG_FILE}" 2>/dev/null || true
+      chmod 600 "${LOG_FILE}" 2>/dev/null || true
+    fi
+    if [[ -w "${LOG_FILE}" ]]; then
+      local _ts
+      _ts="$(date '+%Y-%m-%d %H:%M:%S')"
+      echo "[${_ts}] [EXEC  ] [SECRET: ${label}]" >> "${LOG_FILE}"
+      "$@"
+      return $?
+    fi
+  fi
+  "$@"
+}
+
 
 # ── die ───────────────────────────────────────────────────────────────────────
 die() {
@@ -146,6 +176,58 @@ stop_sudo_keepalive() {
     _SUDO_KEEPALIVE_PID=""
   fi
 }
+
+# ── enable_user_service ───────────────────────────────────────────────────────
+# Configures systemd user units globally (/etc/systemd/user/) for all users,
+# and performs a best-effort start in any currently active non-root user session.
+# Upstream ArchWiki reference: https://wiki.archlinux.org/title/Systemd/User
+enable_user_service() {
+  local unit
+  for unit in "$@"; do
+    run_cmd sudo systemctl --global enable "${unit}"
+    log_ok "Enabled user service globally: ${unit}"
+
+    # In dry-run mode, skip active session startup
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+      continue
+    fi
+
+    # Identify target non-root user for best-effort immediate activation
+    local target_user=""
+    if [[ -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+      target_user="${SUDO_USER}"
+    elif command -v loginctl &>/dev/null; then
+      target_user="$(loginctl list-sessions --no-legend 2>/dev/null | awk '$3 != "root" && $3 != "" {print $3; exit}' || true)"
+    fi
+
+    if [[ -z "${target_user}" ]]; then
+      log_info "No active non-root user session detected; ${unit} will start automatically upon login."
+      continue
+    fi
+
+    local target_uid
+    target_uid="$(id -u "${target_user}" 2>/dev/null || true)"
+    if [[ -z "${target_uid}" ]]; then
+      log_info "No active non-root user session detected; ${unit} will start automatically upon login."
+      continue
+    fi
+
+    local runtime_dir="${ARCHFORGE_USER_RUNTIME_DIR:-/run/user/${target_uid}}"
+    local bus_socket="${runtime_dir}/bus"
+
+    if [[ -d "${runtime_dir}" && -S "${bus_socket}" ]]; then
+      if command -v runuser &>/dev/null; then
+        run_cmd sudo runuser -u "${target_user}" -- env XDG_RUNTIME_DIR="${runtime_dir}" systemctl --user start "${unit}" || true
+      elif command -v sudo &>/dev/null; then
+        run_cmd sudo -u "${target_user}" env XDG_RUNTIME_DIR="${runtime_dir}" systemctl --user start "${unit}" || true
+      fi
+      log_ok "Started user service in active session (${target_user}): ${unit}"
+    else
+      log_info "User session for ${target_user} is not active; ${unit} will start automatically upon login."
+    fi
+  done
+}
+
 
 # ── syntax validation helpers ─────────────────────────────────────────────────
 validate_fstab() {

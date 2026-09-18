@@ -234,3 +234,54 @@ EOF
   rm -rf "${fake_home}"
 }
 
+@test "run_cmd_secret suppresses sensitive arguments and stdout from LOG_FILE" {
+  export ARCHFORGE_TEST=false
+  export DRY_RUN=false
+  local tmp_log; tmp_log="$(mktemp)"
+  export LOG_FILE="$tmp_log"
+
+  run_cmd_secret "WiFi credentials" bash -c 'echo "SUPER_SECRET_12345"'
+
+  run grep "SUPER_SECRET_12345" "$tmp_log"
+  [ "$status" -ne 0 ]
+
+  run grep "[EXEC  ] [SECRET: WiFi credentials]" "$tmp_log"
+  [ "$status" -eq 0 ]
+
+  rm -f "$tmp_log"
+}
+
+@test "enable_user_service executes sudo systemctl --global enable" {
+  mock_reset
+  enable_user_service wireplumber.service
+  mock_ran "sudo systemctl --global enable wireplumber.service"
+}
+
+@test "enable_user_service skips active start when no user session is active" {
+  export ARCHFORGE_USER_RUNTIME_DIR="/tmp/nonexistent-runtime-dir-$$"
+  export SUDO_USER="inactive_user"
+  run enable_user_service wireplumber.service
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"will start automatically upon login"* ]]
+  unset ARCHFORGE_USER_RUNTIME_DIR SUDO_USER
+}
+
+@test "enable_user_service triggers systemctl --user start when active session socket is found" {
+  mock_reset
+  local fake_runtime; fake_runtime="$(mktemp -d)"
+  local bus_socket="${fake_runtime}/bus"
+  python3 -c "import socket, sys; s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); s.bind(sys.argv[1])" "${bus_socket}"
+
+  local current_user; current_user="$(id -un)"
+  export SUDO_USER="${current_user}"
+  export ARCHFORGE_USER_RUNTIME_DIR="${fake_runtime}"
+
+  enable_user_service wireplumber.service
+
+  mock_ran "systemctl --user start wireplumber.service"
+
+  rm -rf "${fake_runtime}"
+  unset SUDO_USER ARCHFORGE_USER_RUNTIME_DIR
+}
+
+
