@@ -224,3 +224,108 @@ teardown() {
 
   rm -rf "${BACKUP_BASE_DIR}" "${test_file}"
 }
+
+# ── Module tagging and granular restore tests ─────────────────────────────────
+
+@test "backup_file records CURRENT_MODULE in manifest and updates MODULES_MODIFIED" {
+  export CURRENT_MODULE="dns"
+  backup_file "/tmp/archforge-test-file-$$"
+  local manifest="${BACKUP_BASE_DIR}/${SESSION_ID}/session.manifest"
+
+  run grep "^MODULES_MODIFIED=dns" "$manifest"
+  [ "$status" -eq 0 ]
+
+  run grep "PATH=/tmp/archforge-test-file-$$" "$manifest"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"MODULE=dns"* ]]
+  unset CURRENT_MODULE
+}
+
+@test "backup_file infers module from caller script when CURRENT_MODULE is unset" {
+  unset CURRENT_MODULE
+  local dummy_script="/tmp/firewall.sh"
+  cat <<EOF > "$dummy_script"
+source "$ARCHFORGE_DIR/lib/core.sh"
+source "$ARCHFORGE_DIR/lib/backup.sh"
+export BACKUP_BASE_DIR="$BACKUP_BASE_DIR"
+export SESSION_ID="$SESSION_ID"
+backup_file "/tmp/archforge-test-file-$$"
+EOF
+  chmod +x "$dummy_script"
+  bash "$dummy_script"
+  rm -f "$dummy_script"
+
+  local manifest="${BACKUP_BASE_DIR}/${SESSION_ID}/session.manifest"
+  run grep "^MODULES_MODIFIED=firewall" "$manifest"
+  [ "$status" -eq 0 ]
+  run grep "MODULE=firewall" "$manifest"
+  [ "$status" -eq 0 ]
+}
+
+@test "_restore_module restores only files belonging to target module" {
+  local file_a="/tmp/archforge-test-mod-a-$$"
+  local file_b="/tmp/archforge-test-mod-b-$$"
+  echo "original A" > "$file_a"
+  echo "original B" > "$file_b"
+
+  CURRENT_MODULE="mod_a" backup_file "$file_a"
+  CURRENT_MODULE="mod_b" backup_file "$file_b"
+  unset CURRENT_MODULE
+
+  # Modify both files
+  echo "modified A" > "$file_a"
+  echo "modified B" > "$file_b"
+
+  export YES_FLAG=true
+  export ARCHFORGE_TEST=false
+  local session_dir="${BACKUP_BASE_DIR}/${SESSION_ID}"
+  local manifest="${session_dir}/session.manifest"
+
+  # Restore only mod_a
+  _restore_module "${session_dir}" "${manifest}" "mod_a"
+  export ARCHFORGE_TEST=true
+
+  # Verify file_a is restored, but file_b is NOT restored
+  run cat "$file_a"
+  [[ "$output" == "original A" ]]
+
+  run cat "$file_b"
+  [[ "$output" == "modified B" ]]
+
+  rm -f "$file_a" "$file_b"
+}
+
+@test "_restore_module warns and returns non-zero if target module has no files" {
+  export CURRENT_MODULE="mod_a"
+  backup_file "/tmp/archforge-test-file-$$"
+  unset CURRENT_MODULE
+
+  local session_dir="${BACKUP_BASE_DIR}/${SESSION_ID}"
+  local manifest="${session_dir}/session.manifest"
+
+  run _restore_module "${session_dir}" "${manifest}" "nonexistent_mod"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"No files recorded for module 'nonexistent_mod'"* ]]
+}
+
+@test "restore_session with target_session and target_module restores directly without prompt" {
+  local file_c="/tmp/archforge-test-mod-c-$$"
+  echo "original C" > "$file_c"
+
+  CURRENT_MODULE="mod_c" backup_file "$file_c"
+  unset CURRENT_MODULE
+
+  echo "modified C" > "$file_c"
+
+  export YES_FLAG=true
+  export ARCHFORGE_TEST=false
+  run restore_session "${SESSION_ID}" "mod_c"
+  export ARCHFORGE_TEST=true
+
+  [ "$status" -eq 0 ]
+  run cat "$file_c"
+  [[ "$output" == "original C" ]]
+
+  rm -f "$file_c"
+}
+

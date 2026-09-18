@@ -86,8 +86,20 @@ run_cmd() {
     echo "$*" >> "${MOCK_LOG_FILE:-/tmp/archforge-mock-$$.log}"
     return 0
   fi
+  if [[ -n "${LOG_FILE:-}" ]]; then
+    touch "${LOG_FILE}" 2>/dev/null || true
+    if [[ -w "${LOG_FILE}" ]]; then
+      local _ts
+      _ts="$(date '+%Y-%m-%d %H:%M:%S')"
+      echo "[${_ts}] [EXEC  ] $*" >> "${LOG_FILE}"
+      "$@" 2>&1 | tee -a "${LOG_FILE}"
+      local pipe_status=("${PIPESTATUS[@]}")
+      return "${pipe_status[0]}"
+    fi
+  fi
   "$@"
 }
+
 
 # ── die ───────────────────────────────────────────────────────────────────────
 die() {

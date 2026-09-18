@@ -92,3 +92,34 @@ load 'setup'
   [[ "$output" == *"03-security/dns.sh" ]]
 }
 
+@test "parse_args sets SUBCOMMAND=restore for restore subcommand" {
+  source "$ARCHFORGE_DIR/lib/core.sh"
+  source "$ARCHFORGE_DIR/archforge" --parse-only
+  parse_args restore
+  [[ "$SUBCOMMAND" == "restore" ]]
+  [[ "$RESTORE_SESSION" == "" ]]
+  [[ "$RESTORE_MODULE" == "" ]]
+}
+
+@test "parse_args parses --module with = and space for restore" {
+  source "$ARCHFORGE_DIR/lib/core.sh"
+  source "$ARCHFORGE_DIR/archforge" --parse-only
+  parse_args restore --module=dns
+  [[ "$SUBCOMMAND" == "restore" ]]
+  [[ "$RESTORE_MODULE" == "dns" ]]
+
+  parse_args restore --module firewall
+  [[ "$SUBCOMMAND" == "restore" ]]
+  [[ "$RESTORE_MODULE" == "firewall" ]]
+}
+
+@test "parse_args parses --session and --module together" {
+  source "$ARCHFORGE_DIR/lib/core.sh"
+  source "$ARCHFORGE_DIR/archforge" --parse-only
+  parse_args restore --session=2026-09-18_120000 --module=systemd
+  [[ "$SUBCOMMAND" == "restore" ]]
+  [[ "$RESTORE_SESSION" == "2026-09-18_120000" ]]
+  [[ "$RESTORE_MODULE" == "systemd" ]]
+}
+
+

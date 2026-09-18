@@ -64,10 +64,16 @@ ALL_MODULES=(
 parse_args() {
   REQUESTED_MODULES=()
   SUBCOMMAND=""
+  RESTORE_SESSION=""
+  RESTORE_MODULE=""
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       restore)         SUBCOMMAND="restore" ;;
+      --session=*)     RESTORE_SESSION="${1#*=}" ;;
+      --session)       shift; RESTORE_SESSION="${1:-}" ;;
+      --module=*)      RESTORE_MODULE="${1#*=}" ;;
+      --module)        shift; RESTORE_MODULE="${1:-}" ;;
       --dry-run)       DRY_RUN=true ;;
       --yes|-y)        YES_FLAG=true ;;
       --modules=*)     IFS=',' read -ra REQUESTED_MODULES <<< "${1#*=}" ;;
@@ -102,7 +108,7 @@ parse_args() {
     REQUESTED_MODULES[${_i}]="${_tok}"
   done
 
-  export DRY_RUN YES_FLAG AUR_HELPER
+  export DRY_RUN YES_FLAG AUR_HELPER RESTORE_SESSION RESTORE_MODULE
 }
 
 _print_help() {
@@ -111,12 +117,14 @@ archforge v${ARCHFORGE_VERSION} — Arch Linux post-installation toolkit
 
 Usage:
   archforge [options]              Run module selector and apply pipeline
-  archforge restore                Interactive restore from backup session
+  archforge restore [options]      Interactive or targeted restore from backup session
   archforge --preview-module ID    Preview module info and official ArchWiki sources
 
 Options:
   --modules m1,m2,...    Run specific modules (skips menu)
   --preview-module=MOD   Preview module details and ArchWiki sources
+  --session=SID          Target backup session to restore
+  --module=MOD           Target module to restore
   --dry-run              Show what would change, execute nothing
   --yes, -y              Skip all confirmation prompts
   --aur-helper=NAME      Override AUR helper (yay, paru, ...)
@@ -228,6 +236,7 @@ run_modules() {
     exit_code=0
     (
       set -euo pipefail
+      export CURRENT_MODULE="${module_id}"
       # shellcheck source=/dev/null
       source "${module_file}"
       module_run
@@ -408,7 +417,7 @@ main() {
   resolve_log_file
   parse_args "$@"
 
-  [[ "${SUBCOMMAND:-}" == "restore" ]] && { restore_session; exit 0; }
+  [[ "${SUBCOMMAND:-}" == "restore" ]] && { restore_session "${RESTORE_SESSION:-}" "${RESTORE_MODULE:-}"; exit $?; }
 
   SESSION_ID="$(date '+%Y-%m-%d_%H%M%S')"
   export SESSION_ID

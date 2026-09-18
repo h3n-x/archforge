@@ -48,6 +48,34 @@ setup() {
   rm -f "$tmp_log"
 }
 
+@test "run_cmd appends execution trace and stdout to LOG_FILE in non-test mode" {
+  export ARCHFORGE_TEST=false
+  export DRY_RUN=false
+  local tmp_log
+  tmp_log="$(mktemp)"
+  export LOG_FILE="$tmp_log"
+
+  run_cmd echo "stdout message to capture"
+
+  grep -qF "[EXEC  ] echo stdout message to capture" "$tmp_log"
+  grep -qF "stdout message to capture" "$tmp_log"
+  rm -f "$tmp_log"
+}
+
+@test "run_cmd appends stderr to LOG_FILE and preserves exit code" {
+  export ARCHFORGE_TEST=false
+  export DRY_RUN=false
+  local tmp_log
+  tmp_log="$(mktemp)"
+  export LOG_FILE="$tmp_log"
+
+  run run_cmd bash -c 'echo "error stream output" >&2; exit 42'
+  [ "$status" -eq 42 ]
+  grep -qF "error stream output" "$tmp_log"
+  rm -f "$tmp_log"
+}
+
+
 @test "confirm returns 0 when YES_FLAG is true" {
   export YES_FLAG=true
   run confirm "question?"

@@ -65,13 +65,42 @@ backup_file() {
   local manifest
   manifest="$(_manifest_file)" || true
 
+  local mod="${CURRENT_MODULE:-}"
+  if [[ -z "${mod}" ]]; then
+    local src
+    for src in "${BASH_SOURCE[@]:1}"; do
+      local bname
+      bname="$(basename "${src}")"
+      if [[ "${bname}" != "backup.sh" && "${bname}" != "core.sh" && "${bname}" != "system.sh" && "${bname}" != "hardware.sh" && "${bname}" != "packages.sh" && "${bname}" == *.sh ]]; then
+        mod="${bname%.sh}"
+        break
+      fi
+    done
+  fi
+  [[ -z "${mod}" ]] && mod="unknown"
+
+  # Update MODULES_MODIFIED header in manifest if not already present
+  if [[ "${mod}" != "unknown" ]]; then
+    local curr_mods
+    curr_mods="$(grep '^MODULES_MODIFIED=' "${manifest}" 2>/dev/null | cut -d= -f2- || true)"
+    if ! [[ " ${curr_mods} " =~ [[:space:]]${mod}[[:space:]] ]]; then
+      local updated_mods
+      if [[ -z "${curr_mods}" ]]; then
+        updated_mods="${mod}"
+      else
+        updated_mods="${curr_mods} ${mod}"
+      fi
+      sed -i "s/^MODULES_MODIFIED=.*/MODULES_MODIFIED=${updated_mods}/" "${manifest}" 2>/dev/null || true
+    fi
+  fi
+
   if [[ ! -e "${path}" && ! -L "${path}" ]]; then
     # Path does not exist yet — the caller is about to create it. Record
     # this *before* the caller writes the file (not after), so a crash
     # between this call and the actual write still leaves an accurate
     # manifest. `restore` uses TYPE=created to delete the file instead of
     # copying old content back, since there is no prior content to restore.
-    echo "  PATH=${path}  TYPE=created" >> "${manifest}"
+    echo "  PATH=${path}  TYPE=created  MODULE=${mod}" >> "${manifest}"
     return 0
   fi
 
@@ -79,7 +108,7 @@ backup_file() {
     # Symlink — record target, do not copy content
     local target
     target="$(readlink "${path}")"
-    echo "  PATH=${path}  TYPE=symlink  TARGET=${target}" >> "${manifest}"
+    echo "  PATH=${path}  TYPE=symlink  TARGET=${target}  MODULE=${mod}" >> "${manifest}"
     return 0
   fi
 
@@ -103,7 +132,7 @@ backup_file() {
 
   mkdir -p "${dest_dir}"
   cp -p "${path}" "${session_dir}/${relative_path}"
-  echo "  PATH=${path}  TYPE=file  MODE=${mode}  OWNER=${owner}  WAS_CREATED=false" >> "${manifest}"
+  echo "  PATH=${path}  TYPE=file  MODE=${mode}  OWNER=${owner}  WAS_CREATED=false  MODULE=${mod}" >> "${manifest}"
 }
 
 record_attr() {
@@ -129,7 +158,7 @@ list_sessions() {
     sid="$(basename "${session_dir}")"
     local modules
     local files_count
-    modules="$(grep '^MODULES_MODIFIED=' "${manifest}" 2>/dev/null | cut -d= -f2 || true)"
+    modules="$(grep '^MODULES_MODIFIED=' "${manifest}" 2>/dev/null | cut -d= -f2- || true)"
     files_count="$(grep -c '^\s*PATH=' "${manifest}" 2>/dev/null || echo 0)"
     printf "  [%d] %s  →  modules: %s    files: %s\n" "${i}" "${sid}" "${modules:-(none)}" "${files_count}"
     i=$(( i + 1 ))
@@ -137,52 +166,152 @@ list_sessions() {
 }
 
 restore_session() {
+  local target_session="${1:-${RESTORE_SESSION:-}}"
+  local target_module="${2:-${RESTORE_MODULE:-}}"
   local base
   base="$(_get_default_backup_base)"
-  list_sessions
 
-  local sessions_file
-  sessions_file="$(mktemp /tmp/archforge-sessions-XXXXXX)"
-  find "${base}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort > "${sessions_file}" || true
+  local session_dir=""
 
-  if [[ ! -s "${sessions_file}" ]]; then
+  if [[ -n "${target_session}" ]]; then
+    if [[ -d "${base}/${target_session}" ]]; then
+      session_dir="${base}/${target_session}"
+    elif [[ -d "${target_session}" ]]; then
+      session_dir="${target_session}"
+    else
+      local match
+      match="$(find "${base}" -mindepth 1 -maxdepth 1 -type d -name "*${target_session}*" 2>/dev/null | head -1 || true)"
+      if [[ -n "${match}" && -d "${match}" ]]; then
+        session_dir="${match}"
+      else
+        log_error "Session not found: ${target_session}"
+        return 1
+      fi
+    fi
+  else
+    list_sessions
+
+    local sessions_file
+    sessions_file="$(mktemp /tmp/archforge-sessions-XXXXXX)"
+    find "${base}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort > "${sessions_file}" || true
+
+    if [[ ! -s "${sessions_file}" ]]; then
+      rm -f "${sessions_file}"
+      log_warn "No sessions found."
+      return 0
+    fi
+
+    local choice
+    read -r -p "Select session number (or 'q' to quit): " choice
+    [[ "${choice}" == "q" ]] && { rm -f "${sessions_file}"; return 0; }
+
+    # Validate numeric input
+    if ! [[ "${choice}" =~ ^[0-9]+$ ]]; then
+      log_warn "Invalid choice: ${choice}"
+      rm -f "${sessions_file}"
+      return 1
+    fi
+
+    session_dir="$(sed -n "${choice}p" "${sessions_file}")"
     rm -f "${sessions_file}"
-    log_warn "No sessions found."
-    return 0
   fi
-
-  local choice
-  read -r -p "Select session number (or 'q' to quit): " choice
-  [[ "${choice}" == "q" ]] && { rm -f "${sessions_file}"; return 0; }
-
-  # Validate numeric input
-  if ! [[ "${choice}" =~ ^[0-9]+$ ]]; then
-    log_warn "Invalid choice: ${choice}"
-    rm -f "${sessions_file}"
-    return 1
-  fi
-
-  local session_dir
-  session_dir="$(sed -n "${choice}p" "${sessions_file}")"
-  rm -f "${sessions_file}"
 
   [[ -z "${session_dir}" ]] && { log_error "Session number out of range."; return 1; }
 
   local manifest="${session_dir}/session.manifest"
-  [[ -f "${manifest}" ]] || { log_error "Manifest not found for session."; return 1; }
+  [[ -f "${manifest}" ]] || { log_error "Manifest not found for session: ${session_dir}"; return 1; }
+
+  if [[ -n "${target_module}" ]]; then
+    _restore_module "${session_dir}" "${manifest}" "${target_module}"
+    return $?
+  fi
 
   echo ""
   echo "Restore options:"
   echo "  [a] Restore full session"
   echo "  [b] Restore individual file"
+  echo "  [c] Restore by module"
   local mode
-  read -r -p "Choice [a/b]: " mode
+  read -r -p "Choice [a/b/c]: " mode
 
   case "${mode}" in
     a) _restore_full "${session_dir}" "${manifest}" ;;
     b) _restore_file_picker "${session_dir}" "${manifest}" ;;
+    c) _restore_module_picker "${session_dir}" "${manifest}" ;;
     *) log_warn "Invalid choice." ;;
   esac
+}
+
+_restore_module() {
+  local session_dir="$1" manifest="$2" target_mod="$3"
+  local count=0
+  local line
+
+  # shellcheck disable=SC2094
+  while IFS= read -r line; do
+    [[ "${line}" =~ ^[[:space:]]*PATH=([^[:space:]]+)[[:space:]]+TYPE=([^[:space:]]+) ]] || continue
+    local fpath="${BASH_REMATCH[1]}"
+    local ftype="${BASH_REMATCH[2]}"
+    local mod=""
+    [[ "${line}" =~ MODULE=([^[:space:]]+) ]] && mod="${BASH_REMATCH[1]}"
+    if [[ "${mod}" == "${target_mod}" ]]; then
+      count=$(( count + 1 ))
+      _restore_entry "${session_dir}" "${manifest}" "${fpath}" "${ftype}" "${line}"
+    fi
+  done < "${manifest}"
+
+  if [[ ${count} -eq 0 ]]; then
+    log_warn "No files recorded for module '${target_mod}' in session manifest."
+    return 1
+  fi
+  log_ok "Module '${target_mod}' restore completed (${count} file(s) processed)."
+}
+
+_restore_module_picker() {
+  local session_dir="$1" manifest="$2"
+
+  local mods_file
+  mods_file="$(mktemp /tmp/archforge-mods-XXXXXX)"
+  grep -o 'MODULE=[^[:space:]]*' "${manifest}" 2>/dev/null | cut -d= -f2 | sort -u > "${mods_file}" || true
+
+  if [[ ! -s "${mods_file}" ]]; then
+    local header_mods
+    header_mods="$(grep '^MODULES_MODIFIED=' "${manifest}" 2>/dev/null | cut -d= -f2- || true)"
+    local hm
+    for hm in ${header_mods}; do
+      echo "${hm}" >> "${mods_file}"
+    done
+  fi
+
+  if [[ ! -s "${mods_file}" ]]; then
+    rm -f "${mods_file}"
+    log_warn "No module information recorded in session manifest."
+    return 1
+  fi
+
+  echo "Modules in this session:"
+  local i=1
+  while IFS= read -r m; do
+    printf "  [%d] %s\n" "${i}" "${m}"
+    i=$(( i + 1 ))
+  done < "${mods_file}"
+
+  local choice
+  read -r -p "Select module number: " choice
+
+  if ! [[ "${choice}" =~ ^[0-9]+$ ]]; then
+    log_warn "Invalid choice: ${choice}"
+    rm -f "${mods_file}"
+    return 1
+  fi
+
+  local selected_mod
+  selected_mod="$(sed -n "${choice}p" "${mods_file}")"
+  rm -f "${mods_file}"
+
+  [[ -z "${selected_mod}" ]] && { log_error "Module number out of range."; return 1; }
+
+  _restore_module "${session_dir}" "${manifest}" "${selected_mod}"
 }
 
 _restore_full() {
