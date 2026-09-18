@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.3.0] - 2026-09-18
+
+### Added
+- **Wayland & Hyprland Support**:
+  - **nvidia.sh**: Configured early KMS loading (`MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)` in `/etc/mkinitcpio.conf`), enabled `options nvidia_drm modeset=1 fbdev=1` in `/etc/modprobe.d/nvidia.conf`, created `/etc/environment.d/10-nvidia-wayland.conf` drop-in, and enforced `mkinitcpio -P` regeneration.
+  - **libinput.sh**: Added generation of Hyprland input configuration snippet (`~/.config/hypr/conf.d/input.conf`) with tap-to-click, natural scrolling, and acceleration profile.
+  - **fonts.sh**: Added `ttf-jetbrains-mono-nerd` package option for Waybar, Hyprland, and modern terminal icons.
+  - **keyboard.sh**: Added Wayland and Hyprland keyboard layout configuration guidance.
+- **Core Security & Execution Hardening**:
+  - **lib/core.sh**: Added `start_sudo_keepalive` and `stop_sudo_keepalive` lifecycle helpers to avoid sudo timeouts during long tasks; added `validate_fstab` (with findmnt & column checks) and `validate_nftables` pre-write syntax validators.
+  - **lib/backup.sh**: Elevated restore operations with `sudo` for root-owned destinations to prevent `Permission denied`; resolved real user home directory via `$SUDO_USER` in `_get_default_backup_base`; isolated `backup_file` under `DRY_RUN`.
+  - **lib/packages.sh**: Prevented recording package installations to temporary logs during dry-run.
+
+### Fixed
+- **pacman.sh**: Replaced `pacman -Sy` with `pacman -Syu` to eliminate unsupported partial upgrade risks.
+- **aur-helper.sh**: Migrated makepkg optimization options to `/etc/makepkg.conf.d/archforge-makepkg.conf` drop-in instead of mutating `/etc/makepkg.conf`.
+- **users-groups.sh**: Omitted deprecated pre-systemd legacy groups (`audio`, `video`, `storage`, `optical`, `scanner`, `games`) per ArchWiki guidelines to preserve systemd-logind and PipeWire ACLs.
+- **dns.sh**: Added `systemctl enable --now systemd-resolved` so stub resolver persists across reboots.
+- **firewall.sh**: Pre-validated nftables syntax (`nft -c -f`) before loading and added conflict check for active `ufw`, `firewalld`, or `iptables.service`.
+- **antivirus.sh**: Added `backup_file` tracking and `systemctl daemon-reload` for custom clamav unit files.
+- **tlp.sh**: Automatically masks conflicting `power-profiles-daemon.service`.
+- **acpid.sh**: Configured `HandleLidSwitch=ignore` in systemd-logind drop-in to prevent double-suspend race conditions.
+- **performance.sh**: Moved `earlyoom` installation from AUR to official `[extra]` repository via pacman.
+- **ssd.sh**: Fixed critical bug in awk script where the `/` root mount line was dropped from `/etc/fstab`; added `validate_fstab` pre-check.
+- **nouveau.sh**: Removed obsolete `xf86-video-nouveau` DDX driver in favor of modesetting and mesa; corrected module name typo in mkinitcpio check.
+- **steam.sh**: Migrated esync file descriptor limit to `/etc/security/limits.d/10-esync.conf` drop-in.
+- **configs**: Updated header comments from legacy `# arch-rice` to `# archforge`.
+- **docs**: Restored Spanish documentation parity for restore limitations in `README.es.md` and corrected ThinkPad/Lenovo battery threshold claims in module tables.
+
 ## [0.2.0] - 2026-03-22
 
 ### Added
