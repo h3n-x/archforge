@@ -56,6 +56,7 @@ ALL_MODULES=(
   "nouveau:10-graphics/nouveau.sh"
   "nvidia:10-graphics/nvidia.sh"
   "steam:11-gaming/steam.sh"
+  "audio:12-peripherals/audio.sh"
   "printing:12-peripherals/printing.sh"
   "vmware-host:13-virtualization/vmware-host.sh"
 )

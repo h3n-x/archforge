@@ -418,6 +418,7 @@ wiki_source_to_urls() {
       aur-wiki-optimus.txt)                              url="https://wiki.archlinux.org/title/NVIDIA_Optimus" ;;
       aur-wiki-pacman-tips-and-tricks.txt)               url="https://wiki.archlinux.org/title/Pacman/Tips_and_tricks" ;;
       aur-wiki-pacman.txt)                               url="https://wiki.archlinux.org/title/Pacman" ;;
+      aur-wiki-pipewire.txt)                             url="https://wiki.archlinux.org/title/PipeWire" ;;
       aur-wiki-power-managements.txt)                    url="https://wiki.archlinux.org/title/Power_management" ;;
       aur-wiki-security.txt)                             url="https://wiki.archlinux.org/title/Security" ;;
       aur-wiki-solid-state-drive.txt)                    url="https://wiki.archlinux.org/title/Solid_state_drive" ;;
@@ -431,6 +432,7 @@ wiki_source_to_urls() {
       aur-wiki-user-and-groups.txt)                      url="https://wiki.archlinux.org/title/Users_and_groups" ;;
       aur-wiki-vmware-install-arch-linux-as-a-guest.txt) url="https://wiki.archlinux.org/title/VMware/Install_Arch_Linux_as_a_guest" ;;
       aur-wiki-vmware.txt)                               url="https://wiki.archlinux.org/title/VMware" ;;
+      aur-wiki-wireplumber.txt)                          url="https://wiki.archlinux.org/title/WirePlumber" ;;
       aur-wiki-xorg-keyboard-configuration.txt)          url="https://wiki.archlinux.org/title/Xorg/Keyboard_configuration" ;;
       aur-wiki-xorg.txt)                                 url="https://wiki.archlinux.org/title/Xorg" ;;
       *)                                                 url="${fname}" ;;  # fallback: show filename

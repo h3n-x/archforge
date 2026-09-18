@@ -14,7 +14,7 @@ MODULE_EXECUTION_ORDER=(
   "fonts" "locale"
   "nouveau" "nvidia"
   "steam"
-  "printing"
+  "audio" "printing"
   "vmware-host"
 )
 

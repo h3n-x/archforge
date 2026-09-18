@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Audio Module**:
+  - **audio.sh**: Complete modern audio stack (`pipewire`, `pipewire-audio`, `pipewire-pulse`, `pipewire-alsa`, `wireplumber`), optional JACK replacement (`pipewire-jack`), optional GUI volume control (`pavucontrol`), and automatic activation of systemd user services (`pipewire.service`, `pipewire-pulse.service`, `wireplumber.service`) via `enable_user_service`.
+- **Core Helpers & Multi-User Safety**:
+  - **lib/core.sh**: Added `enable_user_service` to manage `systemctl --user` units safely across chroot/headless, single-user desktop, and multi-user environments with `loginctl` fallback; added `run_cmd_secret` to execute commands handling secrets without persisting credentials to disk.
+- **TUI & ArchWiki Integration**:
+  - Added D1/D3 dual-engine interactive selector with terminal geometry detection, automatic two-column responsive layout, and live ArchWiki documentation preview card in fzf.
+
 ## [0.3.0] - 2026-09-18
 
 ### Added

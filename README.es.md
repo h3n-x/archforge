@@ -107,6 +107,7 @@ Instala el script `archforge` y copia `lib/` y `modules/` bajo `$(PREFIX)/share/
 | `nouveau` | Graphics: Nouveau (open-source NVIDIA) | Gráficos | [Driver NVIDIA de código abierto](https://wiki.archlinux.org/title/Nouveau) |
 | `nvidia` | Graphics: NVIDIA driver | Gráficos | [Instalación del driver propietario de NVIDIA](https://wiki.archlinux.org/title/NVIDIA) |
 | `steam` | Gaming: Steam | Gaming | [Steam, deps Proton/Wine, fd-limit, GameMode, MangoHud](https://wiki.archlinux.org/title/Steam) |
+| `audio` | Peripherals: Audio (PipeWire & WirePlumber) | Periféricos | [PipeWire, WirePlumber, emulación PulseAudio](https://wiki.archlinux.org/title/PipeWire) |
 | `printing` | Peripherals: Printing (CUPS) | Periféricos | [CUPS, drivers de impresora, avahi](https://wiki.archlinux.org/title/CUPS) |
 | `vmware-host` | Virtualization: VMware Workstation (host) | Virtualización | [Configuración de host VMware Workstation](https://wiki.archlinux.org/title/VMware) |
 
