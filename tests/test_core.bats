@@ -86,16 +86,6 @@ setup() {
   rm -f "${tmp}"
 }
 
-@test "validate_nftables passes in test mode" {
-  local tmp
-  tmp="$(mktemp)"
-  echo "table inet filter { chain input { type filter hook input priority 0; } }" > "${tmp}"
-  export ARCHFORGE_TEST=true
-  run validate_nftables "${tmp}"
-  [ "$status" -eq 0 ]
-  rm -f "${tmp}"
-}
-
 @test "validate_nftables fails for empty file" {
   local tmp
   tmp="$(mktemp)"
@@ -105,12 +95,100 @@ setup() {
   rm -f "${tmp}"
 }
 
-@test "validate_nftables in dry-run mode skips privileged check safely" {
-  local tmp
-  tmp="$(mktemp)"
+@test "validate_nftables: path a - dry-run with cached sudo runs non-interactively and passes" {
+  local fake_bin; fake_bin="$(mktemp -d)"
+  cat > "${fake_bin}/nft" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+  cat > "${fake_bin}/sudo" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "-n" && "$2" == "true" ]]; then exit 0; fi
+if [[ "$1" == "-n" ]]; then shift; exec "$@"; fi
+exec "$@"
+EOF
+  chmod +x "${fake_bin}/nft" "${fake_bin}/sudo"
+
+  local tmp; tmp="$(mktemp)"
   echo "table inet filter { chain input { type filter hook input priority 0; } }" > "${tmp}"
-  export ARCHFORGE_TEST=false DRY_RUN=true
-  run validate_nftables "${tmp}"
+
+  PATH="${fake_bin}:${PATH}" ARCHFORGE_TEST=false DRY_RUN=true run validate_nftables "${tmp}"
   [ "$status" -eq 0 ]
-  rm -f "${tmp}"
+
+  rm -rf "${fake_bin}" "${tmp}"
+}
+
+@test "validate_nftables: path b - dry-run without cached sudo skips privileged check with log_dry" {
+  local fake_bin; fake_bin="$(mktemp -d)"
+  cat > "${fake_bin}/nft" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+  cat > "${fake_bin}/sudo" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "-n" && "$2" == "true" ]]; then exit 1; fi
+if [[ "$1" == "-n" ]]; then exit 1; fi
+echo "UNEXPECTED PROMPT" >&2
+exit 1
+EOF
+  chmod +x "${fake_bin}/nft" "${fake_bin}/sudo"
+
+  local tmp; tmp="$(mktemp)"
+  echo "table inet filter { chain input { type filter hook input priority 0; } }" > "${tmp}"
+
+  PATH="${fake_bin}:${PATH}" ARCHFORGE_TEST=false DRY_RUN=true run validate_nftables "${tmp}"
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "skipped privileged nft syntax check" ]]
+  [[ "$output" != *"UNEXPECTED PROMPT"* ]]
+
+  rm -rf "${fake_bin}" "${tmp}"
+}
+
+@test "validate_nftables: path c - real mode without cached sudo and without TTY fails cleanly" {
+  local fake_bin; fake_bin="$(mktemp -d)"
+  cat > "${fake_bin}/nft" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+  cat > "${fake_bin}/sudo" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "-n" && "$2" == "true" ]]; then exit 1; fi
+if [[ "$1" == "-n" ]]; then exit 1; fi
+echo "UNEXPECTED INTERACTIVE PROMPT" >&2
+exit 1
+EOF
+  chmod +x "${fake_bin}/nft" "${fake_bin}/sudo"
+
+  local tmp; tmp="$(mktemp)"
+  echo "table inet filter { chain input { type filter hook input priority 0; } }" > "${tmp}"
+
+  PATH="${fake_bin}:${PATH}" ARCHFORGE_TEST=false DRY_RUN=false run validate_nftables "${tmp}" < /dev/null
+  [ "$status" -eq 1 ]
+  [[ "$output" =~ "requires sudo privileges, but no active sudo session is available" ]]
+  [[ "$output" != *"UNEXPECTED INTERACTIVE PROMPT"* ]]
+
+  rm -rf "${fake_bin}" "${tmp}"
+}
+
+@test "validate_nftables: path d - real mode with cached sudo validates ruleset without prompt" {
+  local fake_bin; fake_bin="$(mktemp -d)"
+  cat > "${fake_bin}/nft" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+  cat > "${fake_bin}/sudo" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "-n" && "$2" == "true" ]]; then exit 0; fi
+if [[ "$1" == "-n" ]]; then shift; exec "$@"; fi
+exec "$@"
+EOF
+  chmod +x "${fake_bin}/nft" "${fake_bin}/sudo"
+
+  local tmp; tmp="$(mktemp)"
+  echo "table inet filter { chain input { type filter hook input priority 0; } }" > "${tmp}"
+
+  PATH="${fake_bin}:${PATH}" ARCHFORGE_TEST=false DRY_RUN=false run validate_nftables "${tmp}"
+  [ "$status" -eq 0 ]
+
+  rm -rf "${fake_bin}" "${tmp}"
 }
