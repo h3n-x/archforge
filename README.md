@@ -104,6 +104,8 @@ This installs the `archforge` script and copies `lib/` and `modules/` under `$(P
 | `keyboard` | Input: Keyboard layout | Input | [Console keymap, X11 layout via localectl](https://wiki.archlinux.org/title/Keyboard_configuration_in_console) |
 | `fonts` | Console: Fonts | Console | [terminus-font, noto-fonts, ttf-liberation, vconsole.conf](https://wiki.archlinux.org/title/Fonts) |
 | `locale` | Console: Locale & timezone | Console | [locale-gen, timezone, hardware clock sync, NTP](https://wiki.archlinux.org/title/Locale) |
+| `amd` | Graphics: AMD GPU (AMDGPU) | Graphics | [Mesa, RADV Vulkan, early KMS, optional 32-bit multilib](https://wiki.archlinux.org/title/AMDGPU) |
+| `intel` | Graphics: Intel Graphics | Graphics | [Mesa, ANV Vulkan, VA-API acceleration, optional 32-bit multilib](https://wiki.archlinux.org/title/Intel_graphics) |
 | `nouveau` | Graphics: Nouveau (open-source NVIDIA) | Graphics | [Open-source NVIDIA driver](https://wiki.archlinux.org/title/Nouveau) |
 | `nvidia` | Graphics: NVIDIA driver | Graphics | [Proprietary NVIDIA driver install](https://wiki.archlinux.org/title/NVIDIA) |
 | `steam` | Gaming: Steam | Gaming | [Steam, Proton/Wine deps, fd-limit, GameMode, MangoHud](https://wiki.archlinux.org/title/Steam) |

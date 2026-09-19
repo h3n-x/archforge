@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Added
+- **AMD GPU Graphics Module**:
+  - **amd.sh**: Open-source AMD driver suite (`mesa`, `vulkan-radeon`), early KMS loading (`MODULES=(... amdgpu)` in `/etc/mkinitcpio.conf`) with idempotency and backup protection, multilib 32-bit package installation for Steam/Wine, and GPU utilization monitoring (`nvtop`).
+- **Intel Graphics Module**:
+  - **intel.sh**: Open-source Intel driver suite (`mesa`, `vulkan-intel`), hardware video acceleration driver selection (`intel-media-driver` for Gen 8+ Broadwell through modern Arc vs `libva-intel-driver` for legacy Haswell), multilib 32-bit packages, early KMS support, and GPU monitoring (`intel-gpu-tools`).
 - **Audio Module**:
   - **audio.sh**: Complete modern audio stack (`pipewire`, `pipewire-audio`, `pipewire-pulse`, `pipewire-alsa`, `wireplumber`), optional JACK replacement (`pipewire-jack`), optional GUI volume control (`pavucontrol`), and automatic activation of systemd user services (`pipewire.service`, `pipewire-pulse.service`, `wireplumber.service`) via `enable_user_service`.
 - **Bluetooth Module**:

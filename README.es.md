@@ -104,6 +104,8 @@ Instala el script `archforge` y copia `lib/` y `modules/` bajo `$(PREFIX)/share/
 | `keyboard` | Input: Keyboard layout | Entrada | [Keymap de consola, layout X11 vía localectl](https://wiki.archlinux.org/title/Keyboard_configuration_in_console) |
 | `fonts` | Console: Fonts | Consola | [terminus-font, noto-fonts, ttf-liberation, vconsole.conf](https://wiki.archlinux.org/title/Fonts) |
 | `locale` | Console: Locale & timezone | Consola | [locale-gen, zona horaria, sincronización de reloj hardware, NTP](https://wiki.archlinux.org/title/Locale) |
+| `amd` | Graphics: AMD GPU (AMDGPU) | Gráficos | [Mesa, RADV Vulkan, KMS temprano, multilib 32-bit opcional](https://wiki.archlinux.org/title/AMDGPU) |
+| `intel` | Graphics: Intel Graphics | Gráficos | [Mesa, ANV Vulkan, aceleración VA-API, multilib 32-bit opcional](https://wiki.archlinux.org/title/Intel_graphics) |
 | `nouveau` | Graphics: Nouveau (open-source NVIDIA) | Gráficos | [Driver NVIDIA de código abierto](https://wiki.archlinux.org/title/Nouveau) |
 | `nvidia` | Graphics: NVIDIA driver | Gráficos | [Instalación del driver propietario de NVIDIA](https://wiki.archlinux.org/title/NVIDIA) |
 | `steam` | Gaming: Steam | Gaming | [Steam, deps Proton/Wine, fd-limit, GameMode, MangoHud](https://wiki.archlinux.org/title/Steam) |

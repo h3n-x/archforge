@@ -54,6 +54,7 @@ ALL_MODULES=(
   "fonts:08-console/fonts.sh"
   "locale:08-console/locale.sh"
   "amd:10-graphics/amd.sh"
+  "intel:10-graphics/intel.sh"
   "nouveau:10-graphics/nouveau.sh"
   "nvidia:10-graphics/nvidia.sh"
   "steam:11-gaming/steam.sh"
