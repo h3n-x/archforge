@@ -122,4 +122,21 @@ load 'setup'
   [[ "$RESTORE_MODULE" == "systemd" ]]
 }
 
+@test "run_modules warns when a recommended MODULE_DEPENDS is not selected" {
+  run "$ARCHFORGE_DIR/archforge" --dry-run --yes --modules=bluetooth
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Recommended dependency [audio] is not in the selected modules"* ]]
+}
 
+@test "run_modules suppresses warning when recommended MODULE_DEPENDS is selected" {
+  run "$ARCHFORGE_DIR/archforge" --dry-run --yes --modules=audio,bluetooth
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Recommended dependency [audio] is not in the selected modules"* ]]
+}
+
+@test "run_modules skips module when user declines to continue without dependency" {
+  run bash -c "printf 'n\n' | { source '$ARCHFORGE_DIR/lib/core.sh'; source '$ARCHFORGE_DIR/archforge' --parse-only; ARCHFORGE_TEST=true DRY_RUN=false YES_FLAG=false run_modules bluetooth; }"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Recommended dependency [audio] is not in the selected modules"* ]]
+  [[ "$output" == *"Skipped by user (missing dep): bluetooth"* ]]
+}
