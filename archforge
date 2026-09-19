@@ -17,6 +17,8 @@ export ARCHFORGE_TEST=false
 export DETECTED_CPU="" DETECTED_GPU="" IS_LAPTOP="" SYSTEM_TYPE="" DETECTED_INIT=""
 export REQUESTED_MODULES=()
 export SUBCOMMAND=""
+export PROFILE=""
+export NO_HARDWARE_DETECT=false
 # MODULE_NAME, MODULE_HW_WARN, MODULE_DEPENDS, MODULE_WIKI_SOURCE, MODULE_DESC
 # are globals set by _load_module_info(); treated as outputs of that function.
 
@@ -33,6 +35,8 @@ source "${ARCHFORGE_DIR}/lib/packages.sh"
 source "${ARCHFORGE_DIR}/lib/backup.sh"
 # shellcheck source=lib/menu.sh disable=SC1091
 source "${ARCHFORGE_DIR}/lib/menu.sh"
+# shellcheck source=lib/profiles.sh disable=SC1091
+source "${ARCHFORGE_DIR}/lib/profiles.sh"
 
 # ── Module registry ───────────────────────────────────────────────────────────
 ALL_MODULES=(
@@ -80,6 +84,9 @@ parse_args() {
       --module)        shift; RESTORE_MODULE="${1:-}" ;;
       --dry-run)       DRY_RUN=true ;;
       --yes|-y)        YES_FLAG=true ;;
+      --profile=*)     PROFILE="${1#*=}" ;;
+      --profile)       shift; PROFILE="${1:-}" ;;
+      --no-hardware-detect) NO_HARDWARE_DETECT=true ;;
       --modules=*)     IFS=',' read -ra REQUESTED_MODULES <<< "${1#*=}" ;;
       --modules)       shift; IFS=',' read -ra REQUESTED_MODULES <<< "$1" ;;
       --preview-module=*)
@@ -112,7 +119,7 @@ parse_args() {
     REQUESTED_MODULES[${_i}]="${_tok}"
   done
 
-  export DRY_RUN YES_FLAG AUR_HELPER RESTORE_SESSION RESTORE_MODULE
+  export DRY_RUN YES_FLAG AUR_HELPER RESTORE_SESSION RESTORE_MODULE PROFILE NO_HARDWARE_DETECT
 }
 
 _print_help() {
@@ -125,6 +132,8 @@ Usage:
   archforge --preview-module ID    Preview module info and official ArchWiki sources
 
 Options:
+  --profile=NAME         Run pre-configured profile: server, desktop-minimal, desktop-full, gaming
+  --no-hardware-detect   Disable automatic inclusion of detected hardware modules (GPU/laptop)
   --modules m1,m2,...    Run specific modules (skips menu)
   --preview-module=MOD   Preview module details and ArchWiki sources
   --session=SID          Target backup session to restore
@@ -134,6 +143,12 @@ Options:
   --aur-helper=NAME      Override AUR helper (yay, paru, ...)
   --help, -h             Show this help
   --version              Show version
+
+Available profiles:
+  server           Headless server, VPS or Home Lab
+  desktop-minimal  Lightweight desktop / TWM base (Hyprland/Sway/i3)
+  desktop-full     Full daily workstation (audio, bluetooth, printing)
+  gaming           Optimized gaming PC (Steam, Proton, low-latency audio)
 
 Available modules:
 $(printf '  %s\n' "${ALL_MODULES[@]%%:*}")
@@ -430,7 +445,13 @@ main() {
 
   local -a modules_to_run=()
 
-  if [[ ${#REQUESTED_MODULES[@]} -gt 0 ]]; then
+  if [[ -n "${PROFILE:-}" ]]; then
+    local profile_out
+    if ! profile_out="$(resolve_profile "${PROFILE}" "${NO_HARDWARE_DETECT:-false}" "${REQUESTED_MODULES[@]}")"; then
+      exit 1
+    fi
+    mapfile -t modules_to_run <<< "${profile_out}"
+  elif [[ ${#REQUESTED_MODULES[@]} -gt 0 ]]; then
     modules_to_run=("${REQUESTED_MODULES[@]}")
   else
     local -a menu_entries=()

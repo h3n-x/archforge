@@ -17,6 +17,7 @@ detect_hardware() {
   # GPU: parse lspci output for display controllers
   local gpu_info lspci_out
   lspci_out="$(lspci 2>/dev/null)" || lspci_out=''
+  gpu_info="$(grep -iE 'vga|3d|display' <<< "${lspci_out}")" || gpu_info=''
   # Evaluation priority order: NVIDIA > AMD > Intel.
   # Rationale: NVIDIA is prioritized as primary because it requires specialized
   # driver stacks, proprietary kernel modules, and explicit Optimus/PRIME
@@ -41,8 +42,30 @@ detect_hardware() {
   fi
   export DETECTED_GPU
 
-  # Laptop detection: check for battery in /sys
-  if compgen -G "/sys/class/power_supply/BAT*/present" > /dev/null 2>&1; then
+  # Laptop detection: check for genuine system battery in /sys/class/power_supply
+  local is_lap=false
+  local b
+  for b in /sys/class/power_supply/BAT*; do
+    [[ -e "${b}" ]] || continue
+    # Verify type is Battery (excludes UPS, USB, AC adapters)
+    if [[ -f "${b}/type" ]] && grep -qxi 'battery' "${b}/type" 2>/dev/null; then
+      # Exclude peripheral device batteries (e.g. wireless mice/keyboards)
+      if [[ -f "${b}/scope" ]] && grep -qxi 'device' "${b}/scope" 2>/dev/null; then
+        continue
+      fi
+      is_lap=true
+      break
+    fi
+  done
+  if [[ "${is_lap}" != "true" ]] && command -v hostnamectl &>/dev/null; then
+    local chassis
+    chassis="$(hostnamectl chassis 2>/dev/null || true)"
+    case "${chassis,,}" in
+      laptop|notebook|convertible|portable) is_lap=true ;;
+    esac
+  fi
+
+  if [[ "${is_lap}" == "true" ]]; then
     IS_LAPTOP=true
     SYSTEM_TYPE="laptop"
   else

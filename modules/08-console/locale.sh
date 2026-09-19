@@ -54,19 +54,21 @@ _configure_locale() {
     read -r -t 0.1 -n 10000 _ 2>/dev/null || true
   fi
 
-  local locale
-  while true; do
-    read -r -p "Locale to generate [${current_locale}]: " locale || true
-    locale="${locale:-${current_locale}}"
-    if [[ -z "${locale}" ]]; then
-      log_skip "Locale generation skipped."
-      return 0
-    fi
-    if [[ "${locale}" =~ ^[a-zA-Z_]+\.UTF-8$ ]]; then
-      break
-    fi
-    log_error "Invalid locale format '${locale}'. Expected: language_TERRITORY.UTF-8 (e.g. en_US.UTF-8)"
-  done
+  local locale="${current_locale}"
+  if [[ "${YES_FLAG:-false}" != "true" && "${DRY_RUN:-false}" != "true" && "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    while true; do
+      read -r -p "Locale to generate [${current_locale}]: " locale || true
+      locale="${locale:-${current_locale}}"
+      if [[ -z "${locale}" ]]; then
+        log_skip "Locale generation skipped."
+        return 0
+      fi
+      if [[ "${locale}" =~ ^[a-zA-Z_]+\.UTF-8$ ]]; then
+        break
+      fi
+      log_error "Invalid locale format '${locale}'. Expected: language_TERRITORY.UTF-8 (e.g. en_US.UTF-8)"
+    done
+  fi
 
   local tmp_gen tmp_conf
   tmp_gen="$(mktemp)"
@@ -131,10 +133,12 @@ _configure_timezone() {
   log_info "Current timezone: $(timedatectl show --property=Timezone --value 2>/dev/null || true)"
 
   local tz=""
-  if command -v fzf &>/dev/null && [[ -t 0 ]]; then
-    tz="$(timedatectl list-timezones 2>/dev/null | fzf --prompt="Select timezone: " || true)"
-  else
-    read -r -p "Timezone (e.g. America/New_York — blank to skip): " tz
+  if [[ "${YES_FLAG:-false}" != "true" && "${DRY_RUN:-false}" != "true" && "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    if command -v fzf &>/dev/null && [[ -t 0 ]]; then
+      tz="$(timedatectl list-timezones 2>/dev/null | fzf --prompt="Select timezone: " || true)"
+    else
+      read -r -p "Timezone (e.g. America/New_York — blank to skip): " tz
+    fi
   fi
 
   if [[ -n "${tz}" ]]; then
@@ -174,8 +178,10 @@ _configure_hardware_clock() {
   #  rather than Linux to use localtime."
   log_info "Tip: Windows can be configured to use UTC via a registry fix — see aur-wiki-system-time.txt."
 
-  local hw_choice
-  read -r -p "Choice [1]: " hw_choice
+  local hw_choice="1"
+  if [[ "${YES_FLAG:-false}" != "true" && "${DRY_RUN:-false}" != "true" && "${ARCHFORGE_TEST:-false}" != "true" ]]; then
+    read -r -p "Choice [1]: " hw_choice
+  fi
 
   case "${hw_choice:-1}" in
     1)
