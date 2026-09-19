@@ -53,6 +53,7 @@ ALL_MODULES=(
   "keyboard:06-input/keyboard.sh"
   "fonts:08-console/fonts.sh"
   "locale:08-console/locale.sh"
+  "amd:10-graphics/amd.sh"
   "nouveau:10-graphics/nouveau.sh"
   "nvidia:10-graphics/nvidia.sh"
   "steam:11-gaming/steam.sh"

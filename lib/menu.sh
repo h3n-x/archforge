@@ -12,7 +12,7 @@ MODULE_EXECUTION_ORDER=(
   "ssd" "performance" "sensors"
   "libinput" "keyboard"
   "fonts" "locale"
-  "nouveau" "nvidia"
+  "amd" "nouveau" "nvidia"
   "steam"
   "audio" "bluetooth" "printing"
   "vmware-host"
