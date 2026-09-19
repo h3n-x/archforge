@@ -17,7 +17,13 @@ detect_hardware() {
   # GPU: parse lspci output for display controllers
   local gpu_info lspci_out
   lspci_out="$(lspci 2>/dev/null)" || lspci_out=''
-  gpu_info="$(grep -iE 'vga|3d|display' <<< "${lspci_out}")" || gpu_info=''
+  # Evaluation priority order: NVIDIA > AMD > Intel.
+  # Rationale: NVIDIA is prioritized as primary because it requires specialized
+  # driver stacks, proprietary kernel modules, and explicit Optimus/PRIME
+  # offloading configuration that AMD and Intel in-kernel DRM drivers do not need.
+  # When multiple display controllers exist, DETECTED_GPU is prefixed with "Multiple (...)".
+  # Dedicated GPU modules (amd.sh, intel.sh) perform secondary lspci checks to
+  # reliably detect secondary/integrated GPUs in hybrid multi-GPU setups.
   if echo "${gpu_info}" | grep -qi 'nvidia'; then
     DETECTED_GPU="NVIDIA"
   elif echo "${gpu_info}" | grep -qiE 'amd|radeon'; then

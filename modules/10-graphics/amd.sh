@@ -119,7 +119,8 @@ module_run() {
   # Hybrid GPU advice (e.g. Intel iGPU + AMD dGPU or dual AMD)
   if [[ "${DETECTED_GPU:-}" == Multiple* ]] || [[ "$(lspci 2>/dev/null | grep -icE 'vga|3d|display' || true)" -gt 1 ]]; then
     log_info "Hybrid graphics detected (multiple GPUs)."
-    log_info "To launch an application on the dedicated AMD GPU, use: DRI_PRIME=1 <command>"
+    log_info "To launch OpenGL/Wayland apps on dedicated AMD GPU: DRI_PRIME=1 <command>"
+    log_info "For Vulkan apps, ensure 'vulkan-mesa-layers' is installed (or use DRI_PRIME=1!)."
   fi
 
   # Optional GPU monitoring tool
