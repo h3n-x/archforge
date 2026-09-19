@@ -204,3 +204,124 @@ EOF
   [[ "$output" =~ "[ 1]" ]]
   [[ "$output" =~ "[ 3]" ]]
 }
+
+# ── Alphabetical Module Ordering & Number Mapping Tests ───────────────────────
+
+@test "alphabetical ordering: ALL_MODULES in archforge is strictly sorted alphabetically from A to Z" {
+  source "$ARCHFORGE_DIR/archforge" --parse-only
+  [ "${#ALL_MODULES[@]}" -eq 26 ]
+
+  local prev=""
+  local entry id
+  for entry in "${ALL_MODULES[@]}"; do
+    id="${entry%%:*}"
+    if [[ -n "${prev}" ]]; then
+      # Strict alphabetical comparison
+      if [[ ! "${prev}" < "${id}" ]]; then
+        echo "Module '${id}' is not in alphabetical order after '${prev}'" >&2
+        return 1
+      fi
+    fi
+    prev="${id}"
+  done
+}
+
+@test "menu numbering: each number 1 to 26 maps to the exact alphabetical module" {
+  source "$ARCHFORGE_DIR/archforge" --parse-only
+
+  local -a expected_order=(
+    "acpid"
+    "amd"
+    "antivirus"
+    "audio"
+    "aur-helper"
+    "bluetooth"
+    "dns"
+    "firewall"
+    "fonts"
+    "intel"
+    "keyboard"
+    "libinput"
+    "locale"
+    "network"
+    "nouveau"
+    "nvidia"
+    "pacman"
+    "performance"
+    "printing"
+    "sensors"
+    "ssd"
+    "steam"
+    "systemd"
+    "tlp"
+    "users-groups"
+    "vmware-host"
+  )
+
+  local -a menu_entries=()
+  local entry id
+  for entry in "${ALL_MODULES[@]}"; do
+    id="${entry%%:*}"
+    menu_entries+=("${id}:Category: ${id}:Description of ${id}:")
+  done
+
+  declare -A by_number=()
+  declare -a all_ids=()
+  _build_and_print_module_table menu_entries by_number all_ids 2>/dev/null
+
+  [ "${#by_number[@]}" -eq 26 ]
+
+  local i expected_id actual_id
+  for (( i=1; i<=26; i++ )); do
+    expected_id="${expected_order[$(( i - 1 ))]}"
+    actual_id="${by_number[${i}]}"
+    [ "${actual_id}" = "${expected_id}" ]
+  done
+}
+
+@test "menu resolution: selecting numbers (1 4 17 26) resolves to expected alphabetical modules" {
+  source "$ARCHFORGE_DIR/archforge" --parse-only
+
+  local -a menu_entries=()
+  local entry id
+  for entry in "${ALL_MODULES[@]}"; do
+    id="${entry%%:*}"
+    menu_entries+=("${id}:Category: ${id}:Description of ${id}:")
+  done
+
+  # 1 = acpid, 4 = audio, 17 = pacman, 26 = vmware-host
+  SELECTED_MODULES=()
+  _show_menu_d1 menu_entries <<< "1 4 17 26" 2>/dev/null
+
+  # Verify all 4 are selected
+  [ "${#SELECTED_MODULES[@]}" -eq 4 ]
+  local out=" ${SELECTED_MODULES[*]} "
+  [[ "$out" == *" acpid "* ]]
+  [[ "$out" == *" audio "* ]]
+  [[ "$out" == *" pacman "* ]]
+  [[ "$out" == *" vmware-host "* ]]
+
+  # Verify execution order sort puts pacman first and vmware-host last
+  [ "${SELECTED_MODULES[0]}" = "pacman" ]
+  [ "${SELECTED_MODULES[3]}" = "vmware-host" ]
+}
+
+@test "menu resolution: selecting numeric range 1-3 resolves to acpid, amd, and antivirus" {
+  source "$ARCHFORGE_DIR/archforge" --parse-only
+
+  local -a menu_entries=()
+  local entry id
+  for entry in "${ALL_MODULES[@]}"; do
+    id="${entry%%:*}"
+    menu_entries+=("${id}:Category: ${id}:Description of ${id}:")
+  done
+
+  SELECTED_MODULES=()
+  _show_menu_d1 menu_entries <<< "1-3" 2>/dev/null
+
+  [ "${#SELECTED_MODULES[@]}" -eq 3 ]
+  local out=" ${SELECTED_MODULES[*]} "
+  [[ "$out" == *" acpid "* ]]
+  [[ "$out" == *" amd "* ]]
+  [[ "$out" == *" antivirus "* ]]
+}

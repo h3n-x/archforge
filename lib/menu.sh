@@ -20,7 +20,7 @@ MODULE_EXECUTION_ORDER=(
 
 # Widest column count of the "ARCH FORGE" ASCII block (must match longest line).
 # Subtitle centering and the "Select modules" box use this width.
-readonly ARCHFORGE_BANNER_WIDTH=78
+[[ -v ARCHFORGE_BANNER_WIDTH ]] || readonly ARCHFORGE_BANNER_WIDTH=78
 
 # ── UTF-8 detection ────────────────────────────────────────────────────────────
 _has_utf8() {

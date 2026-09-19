@@ -21,6 +21,12 @@
 - **TUI & ArchWiki Integration**:
   - Added D1/D3 dual-engine interactive selector with terminal geometry detection, automatic two-column responsive layout, and live ArchWiki documentation preview card in fzf.
 
+### Changed
+- **Alphabetical Module Presentation & Number Mapping**:
+  - Re-ordered module registry `ALL_MODULES` in `archforge` strictly in alphabetical order from A to Z (`acpid` through `vmware-host`), ensuring predictable 1..26 index mapping across the interactive menu (both D1 two-column/one-column and D3 fzf selectors) and CLI help output.
+  - Aligned all documentation module tables (`README.md`, `README.es.md`, `docs/en/modules.md`, `docs/es/modules.md`) to alphabetical order.
+  - Added full test coverage in `tests/test_menu_ui.bats` verifying strict alphabetical ordering, 1-to-26 mapping integrity, individual/range numeric selections, and execution order safety.
+
 ### Fixed
 - **locale.sh Non-Interactive Execution & Stdin Handling**:
   - Fixed a production bug where `archforge --yes` or automated runs hung on interactive `read -r -p` prompts in `_configure_locale`, `_configure_timezone`, and `_configure_hardware_clock`.

@@ -114,31 +114,31 @@ This installs the `archforge` script and copies `lib/` and `modules/` under `$(P
 
 | ID | Name | Category | Description |
 |---|---|---|---|
-| `pacman` | Package Management: pacman | Package Management | [Configure pacman.conf, multilib, reflector, keyring, pkgfile, paccache](https://wiki.archlinux.org/title/Pacman) |
+| `acpid` | Power: ACPI events (acpid) | Power Management | [Lid close suspend, power button events](https://wiki.archlinux.org/title/Acpid) |
+| `amd` | Graphics: AMD GPU (AMDGPU) | Graphics | [Mesa, RADV Vulkan, early KMS, optional 32-bit multilib](https://wiki.archlinux.org/title/AMDGPU) |
+| `antivirus` | Security: Antivirus (ClamAV) | Security | [ClamAV with clamd config, freshclam, optional on-access scanning + scan timer](https://wiki.archlinux.org/title/ClamAV) |
+| `audio` | Peripherals: Audio (PipeWire & WirePlumber) | Peripherals | [PipeWire, WirePlumber, PulseAudio emulation](https://wiki.archlinux.org/title/PipeWire) |
 | `aur-helper` | Package Management: AUR helper | Package Management | [Detect/install AUR helper (yay/paru), makepkg optimization](https://wiki.archlinux.org/title/AUR_helpers) |
-| `systemd` | System Services: systemd | System Services | [Persistent journal drop-in, boot analysis, timesyncd](https://wiki.archlinux.org/title/Systemd) |
-| `users-groups` | System: Users and Groups | System Services | [User accounts, groups, sudo config](https://wiki.archlinux.org/title/Users_and_groups) |
+| `bluetooth` | Peripherals: Bluetooth (BlueZ) | Peripherals | [BlueZ, bluetoothctl, blueman GUI](https://wiki.archlinux.org/title/Bluetooth) |
 | `dns` | Security: DNS configuration | Security | [DNS provider detection, 6 providers, DNSSEC, DoT](https://wiki.archlinux.org/title/Domain_name_resolution) |
 | `firewall` | Security: Firewall (nftables) | Security | [nftables profiles (desktop/server/strict), SSH rate limiting, drop logging](https://wiki.archlinux.org/title/Nftables) |
-| `antivirus` | Security: Antivirus (ClamAV) | Security | [ClamAV with clamd config, freshclam, optional on-access scanning + scan timer](https://wiki.archlinux.org/title/ClamAV) |
-| `network` | Networking: network configuration | Networking | [Hostname, /etc/hosts, NetworkManager, WiFi powersave, regulatory domain, MAC randomization](https://wiki.archlinux.org/title/NetworkManager) |
-| `tlp` | Power: TLP | Power Management | [Battery optimization, charge thresholds, USB denylist](https://wiki.archlinux.org/title/TLP) |
-| `acpid` | Power: ACPI events (acpid) | Power Management | [Lid close suspend, power button events](https://wiki.archlinux.org/title/Acpid) |
-| `ssd` | Optimization: SSD | Optimization | [TRIM verify, fstrim timer, continuous discard, noatime, tmpfs /tmp](https://wiki.archlinux.org/title/Solid_state_drive) |
-| `performance` | Optimization: Performance | Optimization | [Network sysctls, THP, zram, OOM killer, CPU governor](https://wiki.archlinux.org/title/Improving_performance) |
-| `sensors` | Optimization: Hardware sensors | Optimization | [lm_sensors, sensor detection](https://wiki.archlinux.org/title/Lm_sensors) |
-| `libinput` | Input: libinput (touchpad/mouse) | Input | [Touchpad, natural scroll, TrackPoint, Wayland note](https://wiki.archlinux.org/title/Libinput) |
-| `keyboard` | Input: Keyboard layout | Input | [Console keymap, X11 layout via localectl](https://wiki.archlinux.org/title/Keyboard_configuration_in_console) |
 | `fonts` | Console: Fonts | Console | [terminus-font, noto-fonts, ttf-liberation, vconsole.conf](https://wiki.archlinux.org/title/Fonts) |
-| `locale` | Console: Locale & timezone | Console | [locale-gen, timezone, hardware clock sync, NTP](https://wiki.archlinux.org/title/Locale) |
-| `amd` | Graphics: AMD GPU (AMDGPU) | Graphics | [Mesa, RADV Vulkan, early KMS, optional 32-bit multilib](https://wiki.archlinux.org/title/AMDGPU) |
 | `intel` | Graphics: Intel Graphics | Graphics | [Mesa, ANV Vulkan, VA-API acceleration, optional 32-bit multilib](https://wiki.archlinux.org/title/Intel_graphics) |
+| `keyboard` | Input: Keyboard layout | Input | [Console keymap, X11 layout via localectl](https://wiki.archlinux.org/title/Keyboard_configuration_in_console) |
+| `libinput` | Input: libinput (touchpad/mouse) | Input | [Touchpad, natural scroll, TrackPoint, Wayland note](https://wiki.archlinux.org/title/Libinput) |
+| `locale` | Console: Locale & timezone | Console | [locale-gen, timezone, hardware clock sync, NTP](https://wiki.archlinux.org/title/Locale) |
+| `network` | Networking: network configuration | Networking | [Hostname, /etc/hosts, NetworkManager, WiFi powersave, regulatory domain, MAC randomization](https://wiki.archlinux.org/title/NetworkManager) |
 | `nouveau` | Graphics: Nouveau (open-source NVIDIA) | Graphics | [Open-source NVIDIA driver](https://wiki.archlinux.org/title/Nouveau) |
 | `nvidia` | Graphics: NVIDIA driver | Graphics | [Proprietary NVIDIA driver install](https://wiki.archlinux.org/title/NVIDIA) |
-| `steam` | Gaming: Steam | Gaming | [Steam, Proton/Wine deps, fd-limit, GameMode, MangoHud](https://wiki.archlinux.org/title/Steam) |
-| `audio` | Peripherals: Audio (PipeWire & WirePlumber) | Peripherals | [PipeWire, WirePlumber, PulseAudio emulation](https://wiki.archlinux.org/title/PipeWire) |
-| `bluetooth` | Peripherals: Bluetooth (BlueZ) | Peripherals | [BlueZ, bluetoothctl, blueman GUI](https://wiki.archlinux.org/title/Bluetooth) |
+| `pacman` | Package Management: pacman | Package Management | [Configure pacman.conf, multilib, reflector, keyring, pkgfile, paccache](https://wiki.archlinux.org/title/Pacman) |
+| `performance` | Optimization: Performance | Optimization | [Network sysctls, THP, zram, OOM killer, CPU governor](https://wiki.archlinux.org/title/Improving_performance) |
 | `printing` | Peripherals: Printing (CUPS) | Peripherals | [CUPS, printer drivers, avahi](https://wiki.archlinux.org/title/CUPS) |
+| `sensors` | Optimization: Hardware sensors | Optimization | [lm_sensors, sensor detection](https://wiki.archlinux.org/title/Lm_sensors) |
+| `ssd` | Optimization: SSD | Optimization | [TRIM verify, fstrim timer, continuous discard, noatime, tmpfs /tmp](https://wiki.archlinux.org/title/Solid_state_drive) |
+| `steam` | Gaming: Steam | Gaming | [Steam, Proton/Wine deps, fd-limit, GameMode, MangoHud](https://wiki.archlinux.org/title/Steam) |
+| `systemd` | System Services: systemd | System Services | [Persistent journal drop-in, boot analysis, timesyncd](https://wiki.archlinux.org/title/Systemd) |
+| `tlp` | Power: TLP | Power Management | [Battery optimization, charge thresholds, USB denylist](https://wiki.archlinux.org/title/TLP) |
+| `users-groups` | System: Users and Groups | System Services | [User accounts, groups, sudo config](https://wiki.archlinux.org/title/Users_and_groups) |
 | `vmware-host` | Virtualization: VMware Workstation (host) | Virtualization | [VMware Workstation host setup](https://wiki.archlinux.org/title/VMware) |
 
 &nbsp;
