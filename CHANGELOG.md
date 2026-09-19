@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- **Profile Engine & Hardware-Aware Auto-Resolution**:
+  - **lib/profiles.sh**: High-level profiles (`server`, `desktop-minimal`, `desktop-full`, `gaming`) with curated, hardware-agnostic base modules and universal security baseline (`dns`, `firewall`).
+  - **Multi-GPU PCI Bus Scanner**: Directly interrogates `lspci` across all display and 3D controllers (`0300|0302|0380`), dynamically appending `amd`, `intel`, and/or `nvidia` without single-vendor truncation or mutual exclusion (full dual-GPU hybrid laptop support).
+  - **Hardware Safeguards**: Auto-detects real laptop chassis via sysfs power supply checks (`type == Battery`, `scope != Device`, `hostnamectl chassis`) to safely inject `tlp` and `acpid`; detects virtualization (`systemd-detect-virt`) to include `sensors` only on bare-metal hardware; warns when `gaming` is selected without hardware detection and no GPU driver in `--modules`.
+  - **CLI Flags**: Added `--profile=NAME` and `--no-hardware-detect` flags with automatic module deduplication and canonical execution ordering.
 - **AMD GPU Graphics Module**:
   - **amd.sh**: Open-source AMD driver suite (`mesa`, `vulkan-radeon`), early KMS loading (`MODULES=(... amdgpu)` in `/etc/mkinitcpio.conf`) with idempotency and backup protection, multilib 32-bit package installation for Steam/Wine, and GPU utilization monitoring (`nvtop`).
 - **Intel Graphics Module**:
@@ -15,6 +20,12 @@
   - **lib/core.sh**: Added `enable_user_service` to manage `systemctl --user` units safely across chroot/headless, single-user desktop, and multi-user environments with `loginctl` fallback; added `run_cmd_secret` to execute commands handling secrets without persisting credentials to disk.
 - **TUI & ArchWiki Integration**:
   - Added D1/D3 dual-engine interactive selector with terminal geometry detection, automatic two-column responsive layout, and live ArchWiki documentation preview card in fzf.
+
+### Fixed
+- **locale.sh Non-Interactive Execution & Stdin Handling**:
+  - Fixed a production bug where `archforge --yes` or automated runs hung on interactive `read -r -p` prompts in `_configure_locale`, `_configure_timezone`, and `_configure_hardware_clock`.
+  - Fixed stdin buffer flush (`read -r -t 0.1 -n 10000 _`) running unconditionally on pipelines without checking `[[ -t 0 ]]`, which previously destroyed piped stdin before user prompts could read it.
+  - Enforced automatic defaults when `-t 0` is true and `YES_FLAG=true` (retaining system locale, current timezone, and standard UTC hardware clock) while cleanly accepting redirected answers on non-terminal stdin (`! -t 0`).
 
 ## [0.3.0] - 2026-09-18
 

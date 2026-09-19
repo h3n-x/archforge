@@ -30,3 +30,25 @@
 | bluetooth | Peripherals: Bluetooth | Pila de protocolos BlueZ, CLI bluetoothctl, GUI blueman opcional, desbloqueo rfkill | [Bluetooth](https://wiki.archlinux.org/title/Bluetooth) | bluez bluez-utils |
 | printing | Peripherals: Printing | CUPS, SANE opcional, drivers de impresora | [CUPS](https://wiki.archlinux.org/title/CUPS) [CUPS/Solucion de problemas](https://wiki.archlinux.org/title/CUPS/Troubleshooting) | cups cups-pdf |
 | vmware-host | Virtualization: VMware | Host VMware Workstation Pro (AUR) | [VMware](https://wiki.archlinux.org/title/VMware) | vmware-workstation (AUR) |
+
+&nbsp;
+
+## Perfiles del Sistema
+
+`archforge` incluye 4 perfiles predefinidos accesibles mediante `--profile=NOMBRE`. Cada perfil agrupa una base de software independiente del hardware y aplica una resolución automática basada en el hardware detectado:
+
+| Perfil | Objetivo / Caso de uso | Módulos base de software |
+|---|---|---|
+| `server` | Servidores headless, VPS o Home Labs | `pacman`, `aur-helper`, `systemd`, `users-groups`, `network`, `dns`, `firewall`, `antivirus`, `locale`, `ssd`, `performance` |
+| `desktop-minimal` | Base ligera de escritorio / TWM (Hyprland, Sway, i3) | `pacman`, `aur-helper`, `systemd`, `users-groups`, `network`, `dns`, `firewall`, `keyboard`, `locale`, `fonts`, `libinput`, `audio`, `ssd`, `performance` |
+| `desktop-full` | Estación de trabajo diaria completa | `desktop-minimal` + `bluetooth`, `printing` |
+| `gaming` | PCs optimizadas para juegos | `pacman`, `aur-helper`, `network`, `dns`, `firewall`, `keyboard`, `locale`, `fonts`, `libinput`, `audio`, `bluetooth`, `ssd`, `performance`, `steam` |
+
+### Resolución Dinámica Consciente del Hardware
+
+A menos que se indique `--no-hardware-detect`, `archforge` escanea el equipo dinámicamente:
+- **Escaneo Multi-GPU en el bus PCI**: Interroga los controladores de pantalla y 3D en PCI (`lspci`), añadiendo `amd`, `intel` o `nvidia` según corresponda. En portátiles híbridos (p. ej. APU AMD integrada + NVIDIA discreta), ambos controladores se configuran sin conflicto.
+- **Detección Rigurosa de Portátiles**: Inspecciona `/sys/class/power_supply` (verificando `type == Battery` y excluyendo `scope == Device` de periféricos) y `hostnamectl chassis` para inyectar `tlp` y `acpid` exclusivamente en portátiles reales.
+- **Bare-metal vs Máquina Virtual**: Comprueba el estado de virtualización mediante `systemd-detect-virt`, inyectando `sensors` en hardware físico y omitiéndolo limpiamente dentro de máquinas virtuales.
+- **Composición y Ordenamiento**: Los módulos extra añadidos mediante `--modules` se fusionan, desduplican y ordenan canónicamente según el orden seguro de ejecución.
+

@@ -30,3 +30,25 @@
 | bluetooth | Peripherals: Bluetooth | BlueZ protocol stack, bluetoothctl CLI, optional blueman GUI, rfkill unblocking | [Bluetooth](https://wiki.archlinux.org/title/Bluetooth) | bluez bluez-utils |
 | printing | Peripherals: Printing | CUPS, optional SANE, printer drivers | [CUPS](https://wiki.archlinux.org/title/CUPS) [CUPS/Troubleshooting](https://wiki.archlinux.org/title/CUPS/Troubleshooting) | cups cups-pdf |
 | vmware-host | Virtualization: VMware | VMware Workstation Pro host (AUR) | [VMware](https://wiki.archlinux.org/title/VMware) | vmware-workstation (AUR) |
+
+&nbsp;
+
+## System Profiles
+
+`archforge` includes 4 curated profiles accessible via `--profile=NAME`. Each profile bundles a hardware-agnostic base software list and applies an automatic hardware-aware resolution pass:
+
+| Profile | Target / Use Case | Base Software Modules |
+|---|---|---|
+| `server` | Headless servers, VPS or Home Labs | `pacman`, `aur-helper`, `systemd`, `users-groups`, `network`, `dns`, `firewall`, `antivirus`, `locale`, `ssd`, `performance` |
+| `desktop-minimal` | Lightweight desktop / TWM base (Hyprland, Sway, i3) | `pacman`, `aur-helper`, `systemd`, `users-groups`, `network`, `dns`, `firewall`, `keyboard`, `locale`, `fonts`, `libinput`, `audio`, `ssd`, `performance` |
+| `desktop-full` | Full daily workstation | `desktop-minimal` + `bluetooth`, `printing` |
+| `gaming` | Dedicated gaming rigs | `pacman`, `aur-helper`, `network`, `dns`, `firewall`, `keyboard`, `locale`, `fonts`, `libinput`, `audio`, `bluetooth`, `ssd`, `performance`, `steam` |
+
+### Hardware-Aware Dynamic Resolution
+
+Unless `--no-hardware-detect` is supplied, `archforge` scans the machine dynamically:
+- **Multi-GPU PCI Bus Scanning**: Interrogates all PCI display and 3D controllers (`lspci`), appending `amd`, `intel`, or `nvidia` drivers as needed. In dual-GPU hybrid setups (such as AMD APU + NVIDIA discrete on laptops), both drivers are configured without conflict.
+- **Genuine Laptop Detection**: Inspects `/sys/class/power_supply` (verifying `type == Battery` and excluding peripheral `scope == Device`) and `hostnamectl chassis` to append `tlp` and `acpid` on laptops only.
+- **Bare-metal vs Virtual Machine**: Inspects virtualization via `systemd-detect-virt`, automatically injecting `sensors` on physical machines while cleanly skipping inside virtualized guests.
+- **Composition & Ordering**: Extra modules specified with `--modules` are cleanly merged, deduplicated, and topologically sorted into the canonical safe execution order.
+

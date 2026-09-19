@@ -59,7 +59,34 @@ chmod +x archforge
 ## 🖥️ Interactive menu
 
 > [!NOTE]
-> Without `--modules`, a **two-column numbered menu** appears. Choose by **number** (`1 3 5`), by **module id** (`pacman firewall`), the word **`all`** for every module, or **`q`** to quit. Separate tokens with **spaces or commas**. Rows may show **⚠** when a module can touch hardware or deserves a quick review before applying.
+> Without `--modules` or `--profile`, a **two-column numbered menu** appears. Choose by **number** (`1 3 5`), by **module id** (`pacman firewall`), the word **`all`** for every module, or **`q`** to quit. Separate tokens with **spaces or commas**. Rows may show **⚠** when a module can touch hardware or deserves a quick review before applying.
+
+&nbsp;
+
+## 🎯 System Profiles
+
+Instead of choosing individual modules manually, apply a curated system configuration with `--profile=NAME`:
+
+```bash
+./archforge --profile=desktop-full
+```
+
+| Profile | Target / Use Case | Base Software Modules |
+|---|---|---|
+| `server` | Headless servers, VPS or Home Labs | `pacman`, `aur-helper`, `systemd`, `users-groups`, `network`, `dns`, `firewall`, `antivirus`, `locale`, `ssd`, `performance` |
+| `desktop-minimal` | Lightweight desktop / TWM base (Hyprland, Sway, i3) | `pacman`, `aur-helper`, `systemd`, `users-groups`, `network`, `dns`, `firewall`, `keyboard`, `locale`, `fonts`, `libinput`, `audio`, `ssd`, `performance` |
+| `desktop-full` | Full daily workstation | `desktop-minimal` + `bluetooth`, `printing` |
+| `gaming` | Dedicated gaming rigs | `pacman`, `aur-helper`, `network`, `dns`, `firewall`, `keyboard`, `locale`, `fonts`, `libinput`, `audio`, `bluetooth`, `ssd`, `performance`, `steam` |
+
+> [!NOTE]
+> **Universal Security Baseline**: Every profile includes `dns` (with DNSSEC / DoT) and `firewall` (`nftables`).
+>
+> **Automatic Hardware Resolution**: By default, `archforge` scans the machine bus dynamically:
+> - **Multi-GPU PCI Bus Scanning**: Scans all PCI controllers (`lspci`), seamlessly configuring hybrid setups (e.g., integrated AMD APU + discrete NVIDIA GPU on laptops) without driver collision.
+> - **Laptops**: Inspects battery subsystems (`/sys/class/power_supply`) to add `tlp` and `acpid` on genuine mobile devices only.
+> - **Sensors**: Inspects virtualization via `systemd-detect-virt`, injecting `sensors` on bare-metal hardware and skipping inside VMs.
+>
+> Use `--no-hardware-detect` if you want strictly the curated software base without auto-detecting hardware modules.
 
 &nbsp;
 
@@ -174,12 +201,15 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for tests, `sh
 &nbsp;
 
 ## 🙋 FAQ
-
-- **Q: _How do I skip the menu?_** \
-  **A:** Pass explicit module ids: `./archforge --modules pacman,firewall` (comma-separated). To run everything without typing each id, use the interactive menu and enter **`all`**.
-
-- **Q: _Where are backups stored?_** \
-  **A:** By default under `~/.local/share/archforge/backups/<session-id>/`. Override with the `BACKUP_BASE_DIR` environment variable. Use `./archforge restore` to pick a previous session interactively.
+ 
+ - **Q: _How do I skip the menu?_** \
+   **A:** Pass explicit module ids: `./archforge --modules pacman,firewall` (comma-separated), or use a preset profile: `./archforge --profile=desktop-full`. To run everything without typing each id, use the interactive menu and enter **`all`**.
+ 
+ - **Q: _Can I combine a profile with additional modules?_** \
+   **A:** Yes. Pass `--profile=NAME --modules mod1,mod2`. The modules are merged and automatically sorted into canonical execution order without duplicates.
+ 
+ - **Q: _Where are backups stored?_** \
+   **A:** By default under `~/.local/share/archforge/backups/<session-id>/`. Override with the `BACKUP_BASE_DIR` environment variable. Use `./archforge restore` to pick a previous session interactively.
 
 &nbsp;
 

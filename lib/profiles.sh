@@ -6,7 +6,7 @@ set -euo pipefail
 # ── Available Profiles ────────────────────────────────────────────────────────
 PROFILES_AVAILABLE=("server" "desktop-minimal" "desktop-full" "gaming")
 
-declare -A PROFILE_DESCRIPTIONS=(
+declare -gA PROFILE_DESCRIPTIONS=(
   ["server"]="Headless server, VPS or Home Lab (core system, network, DNS, firewall, security, optimizations)"
   ["desktop-minimal"]="Lightweight desktop / TWM base (Hyprland/Sway/i3, audio, input, fonts, DNS, firewall)"
   ["desktop-full"]="Full daily workstation (desktop-minimal + Bluetooth, CUPS printing, sensors)"
@@ -14,7 +14,7 @@ declare -A PROFILE_DESCRIPTIONS=(
 )
 
 # Base software modules (curated, hardware-agnostic)
-declare -A PROFILE_BASE_MODULES=(
+declare -gA PROFILE_BASE_MODULES=(
   ["server"]="pacman aur-helper systemd users-groups network dns firewall antivirus locale ssd performance"
   ["desktop-minimal"]="pacman aur-helper systemd users-groups network dns firewall keyboard locale fonts libinput audio ssd performance"
   ["desktop-full"]="pacman aur-helper systemd users-groups network dns firewall keyboard locale fonts libinput audio bluetooth printing ssd performance"

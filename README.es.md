@@ -59,7 +59,34 @@ chmod +x archforge
 ## 🖥️ Menú interactivo
 
 > [!NOTE]
-> Sin `--modules`, aparece un **menú numerado en dos columnas**. Puedes elegir por **número** (`1 3 5`), por **id de módulo** (`pacman firewall`), la palabra **`all`** para todos, o **`q`** para salir. Separa entradas con **espacios o comas**. Algunas filas muestran **⚠** cuando el módulo puede tocar hardware o conviene revisar antes de aplicar.
+> Sin `--modules` o `--profile`, aparece un **menú numerado en dos columnas**. Puedes elegir por **número** (`1 3 5`), por **id de módulo** (`pacman firewall`), la palabra **`all`** para todos, o **`q`** para salir. Separa entradas con **espacios o comas**. Algunas filas muestran **⚠** cuando el módulo puede tocar hardware o conviene revisar antes de aplicar.
+
+&nbsp;
+
+## 🎯 Perfiles del sistema
+
+En lugar de seleccionar módulos individuales manualmente, puedes aplicar una configuración prediseñada con `--profile=NOMBRE`:
+
+```bash
+./archforge --profile=desktop-full
+```
+
+| Perfil | Objetivo / Caso de uso | Módulos base de software |
+|---|---|---|
+| `server` | Servidores headless, VPS o Home Labs | `pacman`, `aur-helper`, `systemd`, `users-groups`, `network`, `dns`, `firewall`, `antivirus`, `locale`, `ssd`, `performance` |
+| `desktop-minimal` | Base ligera de escritorio / TWM (Hyprland, Sway, i3) | `pacman`, `aur-helper`, `systemd`, `users-groups`, `network`, `dns`, `firewall`, `keyboard`, `locale`, `fonts`, `libinput`, `audio`, `ssd`, `performance` |
+| `desktop-full` | Estación de trabajo diaria completa | `desktop-minimal` + `bluetooth`, `printing` |
+| `gaming` | PCs optimizadas para juegos | `pacman`, `aur-helper`, `network`, `dns`, `firewall`, `keyboard`, `locale`, `fonts`, `libinput`, `audio`, `bluetooth`, `ssd`, `performance`, `steam` |
+
+> [!NOTE]
+> **Línea base de seguridad universal**: Todos los perfiles incluyen `dns` (con DNSSEC / DoT) y `firewall` (`nftables`).
+>
+> **Resolución automática de hardware**: Por defecto, `archforge` escanea dinámicamente el bus del equipo:
+> - **Escaneo multi-GPU en el bus PCI**: Escanea los controladores PCI (`lspci`), configurando arquitecturas híbridas (p. ej. APU AMD integrada + GPU NVIDIA discreta en portátiles) sin colisiones de drivers.
+> - **Portátiles**: Inspecciona la presencia real de baterías (`/sys/class/power_supply`) para aplicar `tlp` y `acpid` únicamente en dispositivos móviles reales.
+> - **Sensores**: Inspecciona la virtualización con `systemd-detect-virt`, inyectando `sensors` en hardware físico y omitiéndolo limpiamente dentro de máquinas virtuales.
+>
+> Usa `--no-hardware-detect` si deseas estrictamente la base de software sin detección automática de controladores de hardware.
 
 &nbsp;
 
@@ -176,7 +203,10 @@ Las contribuciones son bienvenidas. Ver [CONTRIBUTING.md](CONTRIBUTING.md) para 
 ## 🙋 Preguntas frecuentes
 
 - **P: _¿Cómo evito el menú?_** \
-  **R:** Pasa los ids explícitos: `./archforge --modules pacman,firewall` (separados por comas). Para ejecutar todo sin escribir cada id, usa el menú interactivo y escribe **`all`**.
+  **R:** Pasa los ids explícitos: `./archforge --modules pacman,firewall` (separados por comas), o usa un perfil prediseñado: `./archforge --profile=desktop-full`. Para ejecutar todo sin escribir cada id, usa el menú interactivo y escribe **`all`**.
+
+- **P: _¿Puedo combinar un perfil con módulos adicionales?_** \
+  **R:** Sí. Pasa `--profile=NOMBRE --modules mod1,mod2`. Los módulos se combinan y se ordenan automáticamente según el orden de ejecución seguro sin duplicados.
 
 - **P: _¿Dónde se guardan los respaldos?_** \
   **R:** Por defecto en `~/.local/share/archforge/backups/<id-de-sesión>/`. Puedes cambiar la base con la variable de entorno `BACKUP_BASE_DIR`. Usa `./archforge restore` para elegir una sesión anterior de forma interactiva.
